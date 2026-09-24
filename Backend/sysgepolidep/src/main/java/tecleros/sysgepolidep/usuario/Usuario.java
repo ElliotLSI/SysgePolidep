@@ -42,4 +42,15 @@ public class Usuario {
 
     @Column(name = "Estado", length = 20)
     private String estado = "ACTIVO";
+
+    @PrePersist
+    public void prePersist() {
+        if (this.fechaRegistro == null) {
+            this.fechaRegistro = LocalDateTime.now();
+        }
+        if (this.estado == null) {
+            this.estado = "ACTIVO";
+        }
+    }
+    
 }
