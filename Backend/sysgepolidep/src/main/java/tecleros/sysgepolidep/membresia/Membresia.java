@@ -1,9 +1,10 @@
-package tecleros.sysgepolidep.pago;
+package tecleros.sysgepolidep.membresia;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import tecleros.sysgepolidep.categoria.Categoria;
 import tecleros.sysgepolidep.socio.Socio;
 
 import java.time.LocalDate;

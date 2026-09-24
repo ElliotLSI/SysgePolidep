@@ -1,4 +1,4 @@
-package tecleros.sysgepolidep.pago;
+package tecleros.sysgepolidep.categoria;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

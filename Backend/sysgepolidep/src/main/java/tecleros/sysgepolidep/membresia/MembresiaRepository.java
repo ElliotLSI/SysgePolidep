@@ -1,4 +1,4 @@
-package tecleros.sysgepolidep.pago;
+package tecleros.sysgepolidep.membresia;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
