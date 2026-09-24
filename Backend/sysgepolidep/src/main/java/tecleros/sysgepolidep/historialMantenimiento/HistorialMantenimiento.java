@@ -1,9 +1,10 @@
-package tecleros.sysgepolidep.instalacion;
+package tecleros.sysgepolidep.historialMantenimiento;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import tecleros.sysgepolidep.instalacion.Instalacion;
 
 import java.time.LocalDate;
 

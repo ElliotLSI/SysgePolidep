@@ -1,4 +1,4 @@
-package tecleros.sysgepolidep.instalacion;
+package tecleros.sysgepolidep.historialMantenimiento;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

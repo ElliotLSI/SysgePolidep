@@ -1,4 +1,4 @@
-package tecleros.sysgepolidep.instalacion;
+package tecleros.sysgepolidep.historialMantenimiento;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
