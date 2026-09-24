@@ -1,9 +1,10 @@
-package tecleros.sysgepolidep.reserva;
+package tecleros.sysgepolidep.reservaAFavor;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import tecleros.sysgepolidep.reserva.Reserva;
 import tecleros.sysgepolidep.usuario.Usuario;
 
 import java.time.LocalDate;
