@@ -1,23 +1,27 @@
-package tecleros.sysgepolidep.usuario;
+package tecleros.sysgepolidep.usuario.empleado;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import tecleros.sysgepolidep.usuario.Usuario;
 
 @Entity
-@Table(name = "administrador")
+@Table(name = "empleado")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Administrador {
+public class Empleado {
 
     @Id
     @Column(name = "Id_Usuario")
     private Long idUsuario;
 
-    @Column(name = "Nivel_Acceso", nullable = false)
-    private Integer nivelAcceso = 1;
+    @Column(name = "Legajo", nullable = false, unique = true)
+    private Integer legajo;
+
+    @Column(name = "Turno", length = 50)
+    private String turno;
 
     @OneToOne
     @MapsId

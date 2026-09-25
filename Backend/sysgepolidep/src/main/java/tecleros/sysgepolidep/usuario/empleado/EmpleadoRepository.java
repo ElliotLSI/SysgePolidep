@@ -1,4 +1,4 @@
-package tecleros.sysgepolidep.usuario;
+package tecleros.sysgepolidep.usuario.empleado;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

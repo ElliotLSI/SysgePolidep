@@ -3,8 +3,11 @@ package tecleros.sysgepolidep.reservaAFavor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import tecleros.sysgepolidep.reserva.Reserva;
 
 @RestController
 @RequestMapping("/api/reservas-a-favor")
@@ -67,4 +70,21 @@ public class ReservaAFavorController {
         reservaAFavorService
                 .eliminarReservaAFavor(id);
     }
+    @PostMapping("/{id}/reprogramar")
+    public Reserva reprogramar(
+            @PathVariable Long id,
+            @RequestParam LocalDate fecha,
+            @RequestParam LocalTime hora,
+            @RequestParam Integer duracion,
+            @RequestParam Long instalacion) {
+
+        return reservaAFavorService.reprogramarReserva(
+                id,
+                fecha,
+                hora,
+                duracion,
+                instalacion
+        );
+    }
+
 }
