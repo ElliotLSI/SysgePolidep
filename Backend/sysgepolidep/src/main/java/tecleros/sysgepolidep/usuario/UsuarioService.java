@@ -2,6 +2,7 @@ package tecleros.sysgepolidep.usuario;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
@@ -11,6 +12,9 @@ public class UsuarioService {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     public List<Usuario> listarTodos() {
         return usuarioRepository.findAll();
@@ -113,6 +117,10 @@ public class UsuarioService {
                     "La contraseña es obligatoria."
             );
         }
+
+        usuario.setPassword(
+                passwordEncoder.encode(usuario.getPassword())
+        );
 
         // Validar pertenencia
         if (usuario.getPertenencia() == null ||
