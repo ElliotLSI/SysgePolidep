@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -14,22 +15,46 @@ public class UsuarioController {
     private UsuarioService usuarioService;
 
     @GetMapping
-    public List<Usuario> obtenerTodos() {
-        return usuarioService.listarTodos();
+    public List<UsuarioResponseDTO> obtenerTodos() {
+        return usuarioService.listarTodos()
+                .stream()
+                .map(this::convertirADTO)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
-    public Optional<Usuario> obtenerPorId(@PathVariable Long id) {
-        return usuarioService.buscarPorId(id);
+    public UsuarioResponseDTO obtenerPorId(@PathVariable Long id) {
+        Optional<Usuario> usuario = usuarioService.buscarPorId(id);
+
+        return usuario.map(this::convertirADTO).orElse(null);
     }
 
     @PostMapping
-    public Usuario crearUsuario(@RequestBody Usuario usuario) {
-        return usuarioService.guardarUsuario(usuario);
+    public UsuarioResponseDTO crearUsuario(@RequestBody Usuario usuario) {
+        Usuario usuarioGuardado = usuarioService.guardarUsuario(usuario);
+        return convertirADTO(usuarioGuardado);
     }
 
     @DeleteMapping("/{id}")
     public void eliminarUsuario(@PathVariable Long id) {
         usuarioService.eliminarUsuario(id);
+    }
+
+    private UsuarioResponseDTO convertirADTO(Usuario usuario) {
+        return new UsuarioResponseDTO(
+                usuario.getIdUsuario(),
+                usuario.getNombre(),
+                usuario.getApellido(),
+                usuario.getDni(),
+                usuario.getFechaNacimiento(),
+                usuario.getDomicilio(),
+                usuario.getTelefono(),
+                usuario.getEmail(),
+                usuario.getNombreUsuario(),
+                usuario.getPertenencia(),
+                usuario.getLegajo(),
+                usuario.getFechaRegistro(),
+                usuario.getEstado()
+        );
     }
 }
