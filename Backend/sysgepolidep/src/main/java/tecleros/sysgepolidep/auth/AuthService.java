@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import tecleros.sysgepolidep.usuario.Usuario;
 import tecleros.sysgepolidep.usuario.UsuarioRepository;
 
+import java.util.List;
+
 @Service
 public class AuthService {
 
@@ -14,6 +16,12 @@ public class AuthService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RolService rolService;
+
+    @Autowired
+    private JwtService jwtService;
 
     public LoginResponse login(LoginRequest request) {
 
@@ -42,7 +50,7 @@ public class AuthService {
             );
         }
 
-        // Buscar usuario por nombre de usuario
+        // Buscar usuario
         Usuario usuario = usuarioRepository
                 .findByNombreUsuario(request.getNombreUsuario())
                 .orElseThrow(() ->
@@ -51,7 +59,7 @@ public class AuthService {
                         )
                 );
 
-        // Comparar contraseña ingresada con el hash BCrypt
+        // Comparar contraseña con BCrypt
         if (!passwordEncoder.matches(
                 request.getPassword(),
                 usuario.getPassword())) {
@@ -69,13 +77,26 @@ public class AuthService {
             );
         }
 
-        // Crear respuesta sin devolver la contraseña
+        // Obtener roles del usuario
+        List<String> roles =
+                rolService.obtenerRoles(usuario.getIdUsuario());
+
+        // Generar JWT
+        String token = jwtService.generarToken(
+                usuario.getIdUsuario(),
+                usuario.getNombreUsuario(),
+                roles
+        );
+
+        // Devolver información del usuario + roles + token
         return new LoginResponse(
                 usuario.getIdUsuario(),
                 usuario.getNombre(),
                 usuario.getApellido(),
                 usuario.getNombreUsuario(),
-                usuario.getEstado()
+                usuario.getEstado(),
+                roles,
+                token
         );
     }
 }
