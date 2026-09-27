@@ -146,6 +146,149 @@ public class UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
+    public Usuario actualizarUsuario(Long id, Usuario datos) {
+
+        Usuario usuarioExistente = usuarioRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "No existe un usuario con el ID indicado."
+                        )
+                );
+
+        // Validar nombre
+        if (datos.getNombre() == null ||
+                datos.getNombre().trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "El nombre es obligatorio."
+            );
+        }
+
+        // Validar apellido
+        if (datos.getApellido() == null ||
+                datos.getApellido().trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "El apellido es obligatorio."
+            );
+        }
+
+        // Validar DNI
+        if (datos.getDni() == null ||
+                datos.getDni().trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "El DNI es obligatorio."
+            );
+        }
+
+        if (!datos.getDni().matches("\\d{8}")) {
+
+            throw new IllegalArgumentException(
+                    "El DNI debe contener exactamente 8 dígitos."
+            );
+        }
+
+        // Verificar que el DNI no pertenezca a otro usuario
+        Optional<Usuario> usuarioPorDni =
+                usuarioRepository.findByDni(datos.getDni());
+
+        if (usuarioPorDni.isPresent() &&
+                !usuarioPorDni.get().getIdUsuario().equals(id)) {
+
+            throw new IllegalArgumentException(
+                    "Ya existe otro usuario registrado con ese DNI."
+            );
+        }
+
+        // Validar email
+        if (datos.getEmail() == null ||
+                datos.getEmail().trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "El email es obligatorio."
+            );
+        }
+
+        // Verificar que el email no pertenezca a otro usuario
+        Optional<Usuario> usuarioPorEmail =
+                usuarioRepository.findByEmail(datos.getEmail());
+
+        if (usuarioPorEmail.isPresent() &&
+                !usuarioPorEmail.get().getIdUsuario().equals(id)) {
+
+            throw new IllegalArgumentException(
+                    "Ya existe otro usuario registrado con ese email."
+            );
+        }
+
+        // Validar nombre de usuario
+        if (datos.getNombreUsuario() == null ||
+                datos.getNombreUsuario().trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "El nombre de usuario es obligatorio."
+            );
+        }
+
+        // Verificar que el nombre de usuario no pertenezca a otro usuario
+        Optional<Usuario> usuarioPorNombre =
+                usuarioRepository.findByNombreUsuario(
+                        datos.getNombreUsuario()
+                );
+
+        if (usuarioPorNombre.isPresent() &&
+                !usuarioPorNombre.get().getIdUsuario().equals(id)) {
+
+            throw new IllegalArgumentException(
+                    "Ya existe otro usuario con ese nombre de usuario."
+            );
+        }
+
+        // Validar pertenencia
+        if (datos.getPertenencia() == null ||
+                datos.getPertenencia().trim().isEmpty()) {
+
+            datos.setPertenencia("NINGUNO");
+        }
+
+        String pertenencia = datos.getPertenencia().toUpperCase();
+
+        if (!pertenencia.equals("DOCENTE") &&
+                !pertenencia.equals("ALUMNO") &&
+                !pertenencia.equals("ADMINISTRATIVO") &&
+                !pertenencia.equals("NINGUNO")) {
+
+            throw new IllegalArgumentException(
+                    "La pertenencia debe ser DOCENTE, ALUMNO, ADMINISTRATIVO o NINGUNO."
+            );
+        }
+
+        // Actualizar datos
+        usuarioExistente.setNombre(datos.getNombre());
+        usuarioExistente.setApellido(datos.getApellido());
+        usuarioExistente.setDni(datos.getDni());
+        usuarioExistente.setFechaNacimiento(datos.getFechaNacimiento());
+        usuarioExistente.setDomicilio(datos.getDomicilio());
+        usuarioExistente.setTelefono(datos.getTelefono());
+        usuarioExistente.setEmail(datos.getEmail());
+        usuarioExistente.setNombreUsuario(datos.getNombreUsuario());
+        usuarioExistente.setPertenencia(pertenencia);
+        usuarioExistente.setLegajo(datos.getLegajo());
+        usuarioExistente.setEstado(datos.getEstado());
+
+        // Cambiar contraseña solamente si se escribió una nueva
+        if (datos.getPassword() != null &&
+                !datos.getPassword().trim().isEmpty()) {
+
+            usuarioExistente.setPassword(
+                    passwordEncoder.encode(datos.getPassword())
+            );
+        }
+
+        return usuarioRepository.save(usuarioExistente);
+    }
+
     public void eliminarUsuario(Long id) {
         usuarioRepository.deleteById(id);
     }

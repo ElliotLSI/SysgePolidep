@@ -35,6 +35,17 @@ public class UsuarioController {
         return convertirADTO(usuarioGuardado);
     }
 
+    @PutMapping("/{id}")
+    public UsuarioResponseDTO actualizarUsuario(
+            @PathVariable Long id,
+            @RequestBody Usuario usuario) {
+
+        Usuario usuarioActualizado =
+                usuarioService.actualizarUsuario(id, usuario);
+
+        return convertirADTO(usuarioActualizado);
+    }
+
     @DeleteMapping("/{id}")
     public void eliminarUsuario(@PathVariable Long id) {
         usuarioService.eliminarUsuario(id);
