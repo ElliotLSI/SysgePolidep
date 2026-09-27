@@ -23,16 +23,13 @@ public class PagoService {
     @Autowired
     private MembresiaRepository membresiaRepository;
 
-
     public List<Pago> listarTodos() {
         return pagoRepository.findAll();
     }
 
-
     public Optional<Pago> buscarPorId(Long id) {
         return pagoRepository.findById(id);
     }
-
 
     public Pago crearPago(Pago pago) {
 
@@ -58,7 +55,6 @@ public class PagoService {
                     "El pago no puede estar asociado simultáneamente a una reserva y a una membresía.");
         }
 
-
         /*
          * Si es pago de una reserva,
          * verificamos que la reserva exista.
@@ -80,7 +76,6 @@ public class PagoService {
             pago.setReserva(reserva);
         }
 
-
         /*
          * Si es pago de membresía,
          * verificamos que la membresía exista.
@@ -95,7 +90,6 @@ public class PagoService {
                                     "La membresía no existe."));
         }
 
-
         /*
          * Validamos el monto.
          */
@@ -109,7 +103,6 @@ public class PagoService {
                     "El monto del pago no puede ser negativo.");
         }
 
-
         /*
          * Validamos el medio de pago.
          */
@@ -120,9 +113,8 @@ public class PagoService {
                     "El medio de pago es obligatorio.");
         }
 
-
         /*
-         * Estado por defecto.
+         * Estados permitidos.
          */
         if (pago.getEstado() == null ||
                 pago.getEstado().isBlank()) {
@@ -130,18 +122,33 @@ public class PagoService {
             pago.setEstado("APROBADO");
         }
 
+        String estadoPago = pago.getEstado().toUpperCase();
 
-        /*
-         * Estados permitidos.
-         */
-        if (!pago.getEstado().equals("APROBADO") &&
-                !pago.getEstado().equals("PENDIENTE") &&
-                !pago.getEstado().equals("RECHAZADO")) {
+        if (!estadoPago.equals("APROBADO") &&
+                !estadoPago.equals("PENDIENTE") &&
+                !estadoPago.equals("RECHAZADO")) {
 
             throw new IllegalArgumentException(
                     "El estado del pago debe ser APROBADO, PENDIENTE o RECHAZADO.");
         }
 
+        pago.setEstado(estadoPago);
+
+        /*
+         * Validamos el medio de pago permitido.
+         */
+        String medioPago = pago.getMedioPago().toUpperCase();
+
+        if (!medioPago.equals("MERCADOPAGO") &&
+                !medioPago.equals("TRANSFERENCIA") &&
+                !medioPago.equals("TARJETA") &&
+                !medioPago.equals("EFECTIVO")) {
+
+            throw new IllegalArgumentException(
+                    "El medio de pago debe ser MERCADOPAGO, TRANSFERENCIA o TARJETA.");
+        }
+
+        pago.setMedioPago(medioPago);
 
         /*
          * Fecha automática.
@@ -150,10 +157,32 @@ public class PagoService {
             pago.setFecha(LocalDateTime.now());
         }
 
+        /*
+         * Guardamos el pago.
+         */
+        Pago pagoGuardado = pagoRepository.save(pago);
 
-        return pagoRepository.save(pago);
+        /*
+         * Si el pago corresponde a una reserva,
+         * está aprobado y cubre el monto total,
+         * confirmamos automáticamente la reserva.
+         */
+        if (pagoGuardado.getReserva() != null &&
+                pagoGuardado.getEstado().equals("APROBADO")) {
+
+            Reserva reserva = pagoGuardado.getReserva();
+
+            if (reserva.getMontoTotal() != null &&
+                    pagoGuardado.getMontoTotal() >= reserva.getMontoTotal()) {
+
+                reserva.setEstado("CONFIRMADA");
+
+                reservaRepository.save(reserva);
+            }
+        }
+
+        return pagoGuardado;
     }
-
 
     public void eliminarPago(Long id) {
 
