@@ -2,9 +2,11 @@ package tecleros.sysgepolidep.membresia;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import tecleros.sysgepolidep.categoria.Categoria;
 import tecleros.sysgepolidep.categoria.CategoriaRepository;
 import tecleros.sysgepolidep.socio.SocioRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,13 +22,28 @@ public class MembresiaService {
     @Autowired
     private SocioRepository socioRepository;
 
+
+    // ==========================================================
+    // LISTAR TODAS LAS MEMBRESÍAS
+    // ==========================================================
+
     public List<Membresia> listarTodas() {
         return membresiaRepository.findAll();
     }
 
+
+    // ==========================================================
+    // BUSCAR MEMBRESÍA POR ID
+    // ==========================================================
+
     public Optional<Membresia> buscarPorId(Long id) {
         return membresiaRepository.findById(id);
     }
+
+
+    // ==========================================================
+    // CREAR / GUARDAR MEMBRESÍA
+    // ==========================================================
 
     public Membresia guardarMembresia(Membresia membresia) {
 
@@ -36,6 +53,11 @@ public class MembresiaService {
             );
         }
 
+
+        // ------------------------------------------------------
+        // VALIDAR CATEGORÍA
+        // ------------------------------------------------------
+
         if (membresia.getCategoria() == null ||
                 membresia.getCategoria().getIdCategoria() == null) {
 
@@ -44,13 +66,21 @@ public class MembresiaService {
             );
         }
 
-        Long idCategoria = membresia.getCategoria().getIdCategoria();
+        Long idCategoria =
+                membresia.getCategoria().getIdCategoria();
 
-        if (categoriaRepository.findById(idCategoria).isEmpty()) {
-            throw new IllegalArgumentException(
-                    "La categoría asociada no existe."
-            );
-        }
+        Categoria categoria =
+                categoriaRepository.findById(idCategoria)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "La categoría asociada no existe."
+                                )
+                        );
+
+
+        // ------------------------------------------------------
+        // VALIDAR SOCIO
+        // ------------------------------------------------------
 
         if (membresia.getSocio() == null ||
                 membresia.getSocio().getIdUsuario() == null) {
@@ -60,31 +90,47 @@ public class MembresiaService {
             );
         }
 
-        Long idSocio = membresia.getSocio().getIdUsuario();
+        Long idSocio =
+                membresia.getSocio().getIdUsuario();
 
         if (socioRepository.findById(idSocio).isEmpty()) {
+
             throw new IllegalArgumentException(
                     "El socio asociado no existe."
             );
         }
 
+
+        // ------------------------------------------------------
+        // VALIDAR FECHAS
+        // ------------------------------------------------------
+
         if (membresia.getFechaInicio() == null) {
+
             throw new IllegalArgumentException(
                     "La fecha de inicio es obligatoria."
             );
         }
 
         if (membresia.getFechaVenc() == null) {
+
             throw new IllegalArgumentException(
                     "La fecha de vencimiento es obligatoria."
             );
         }
 
-        if (!membresia.getFechaVenc().isAfter(membresia.getFechaInicio())) {
+        if (!membresia.getFechaVenc()
+                .isAfter(membresia.getFechaInicio())) {
+
             throw new IllegalArgumentException(
                     "La fecha de vencimiento debe ser posterior a la fecha de inicio."
             );
         }
+
+
+        // ------------------------------------------------------
+        // VALIDAR ESTADO
+        // ------------------------------------------------------
 
         if (membresia.getEstado() == null ||
                 membresia.getEstado().trim().isEmpty()) {
@@ -92,7 +138,8 @@ public class MembresiaService {
             membresia.setEstado("VIGENTE");
         }
 
-        String estado = membresia.getEstado().toUpperCase();
+        String estado =
+                membresia.getEstado().toUpperCase();
 
         if (!estado.equals("VIGENTE") &&
                 !estado.equals("VENCIDA") &&
@@ -105,12 +152,108 @@ public class MembresiaService {
 
         membresia.setEstado(estado);
 
+
         return membresiaRepository.save(membresia);
     }
+
+
+    // ==========================================================
+    // RENOVAR MEMBRESÍA
+    // ==========================================================
+
+    public Membresia renovarMembresia(Long idMembresia) {
+
+        // ------------------------------------------------------
+        // BUSCAR MEMBRESÍA
+        // ------------------------------------------------------
+
+        Membresia membresia =
+                membresiaRepository.findById(idMembresia)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Membresía no encontrada con ID: "
+                                                + idMembresia
+                                )
+                        );
+
+
+        // ------------------------------------------------------
+        // VERIFICAR CATEGORÍA
+        // ------------------------------------------------------
+
+        if (membresia.getCategoria() == null ||
+                membresia.getCategoria().getIdCategoria() == null) {
+
+            throw new IllegalArgumentException(
+                    "La membresía no tiene una categoría asociada."
+            );
+        }
+
+
+        Categoria categoria =
+                categoriaRepository.findById(
+                                membresia.getCategoria()
+                                        .getIdCategoria()
+                        )
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "La categoría asociada no existe."
+                                )
+                        );
+
+
+        // ------------------------------------------------------
+        // VERIFICAR DURACIÓN
+        // ------------------------------------------------------
+
+        if (categoria.getDuracionMeses() == null ||
+                categoria.getDuracionMeses() <= 0) {
+
+            throw new IllegalArgumentException(
+                    "La categoría no tiene una duración válida."
+            );
+        }
+
+
+        // ------------------------------------------------------
+        // CALCULAR NUEVA VIGENCIA
+        // ------------------------------------------------------
+
+        LocalDate fechaInicio = LocalDate.now();
+
+        LocalDate fechaVencimiento =
+                fechaInicio.plusMonths(
+                        categoria.getDuracionMeses()
+                );
+
+
+        // ------------------------------------------------------
+        // ACTUALIZAR MEMBRESÍA
+        // ------------------------------------------------------
+
+        membresia.setFechaInicio(fechaInicio);
+
+        membresia.setFechaVenc(fechaVencimiento);
+
+        membresia.setEstado("VIGENTE");
+
+
+        // ------------------------------------------------------
+        // GUARDAR
+        // ------------------------------------------------------
+
+        return membresiaRepository.save(membresia);
+    }
+
+
+    // ==========================================================
+    // ELIMINAR MEMBRESÍA
+    // ==========================================================
 
     public void eliminarMembresia(Long id) {
 
         if (!membresiaRepository.existsById(id)) {
+
             throw new IllegalArgumentException(
                     "Membresía no encontrada con ID: " + id
             );

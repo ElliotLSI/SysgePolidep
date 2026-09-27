@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import tecleros.sysgepolidep.membresia.MembresiaRepository;
 import tecleros.sysgepolidep.usuario.admin.AdministradorRepository;
 import tecleros.sysgepolidep.usuario.empleado.EmpleadoRepository;
-import tecleros.sysgepolidep.socio.SocioRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,26 +19,36 @@ public class RolService {
     private EmpleadoRepository empleadoRepository;
 
     @Autowired
-    private SocioRepository socioRepository;
-
-    @Autowired
     private MembresiaRepository membresiaRepository;
+
 
     public List<String> obtenerRoles(Long idUsuario) {
 
         List<String> roles = new ArrayList<>();
 
+        // ---------------------------------------------
+        // ADMINISTRADOR
+        // ---------------------------------------------
+
         if (administradorRepository.existsById(idUsuario)) {
             roles.add("ADMINISTRADOR");
         }
+
+
+        // ---------------------------------------------
+        // EMPLEADO
+        // ---------------------------------------------
 
         if (empleadoRepository.existsById(idUsuario)) {
             roles.add("EMPLEADO");
         }
 
-        if (socioRepository.existsById(idUsuario)) {
-            roles.add("SOCIO");
-        }
+
+        // ---------------------------------------------
+        // SOCIO
+        // ---------------------------------------------
+        // Un usuario es SOCIO solamente si posee
+        // una membresía vigente.
 
         if (!membresiaRepository
                 .findBySocioIdUsuarioAndEstado(idUsuario, "VIGENTE")
@@ -48,8 +57,11 @@ public class RolService {
             roles.add("SOCIO");
         }
 
-        // Si no pertenece a ningún grupo especial,
-        // es un usuario común.
+
+        // ---------------------------------------------
+        // USUARIO COMÚN
+        // ---------------------------------------------
+
         if (roles.isEmpty()) {
             roles.add("USUARIO");
         }
