@@ -21,7 +21,10 @@ public class Socio {
     private Integer nroSocio;
 
     @OneToOne
-    @MapsId
-    @JoinColumn(name = "Id_Usuario")
+    @JoinColumn(
+            name = "Id_Usuario",
+            insertable = false,
+            updatable = false
+    )
     private Usuario usuario;
 }

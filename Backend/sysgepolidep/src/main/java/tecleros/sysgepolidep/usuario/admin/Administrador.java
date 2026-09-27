@@ -21,7 +21,10 @@ public class Administrador {
     private Integer nivelAcceso = 1;
 
     @OneToOne
-    @MapsId
-    @JoinColumn(name = "Id_Usuario")
+    @JoinColumn(
+            name = "Id_Usuario",
+            insertable = false,
+            updatable = false
+    )
     private Usuario usuario;
 }

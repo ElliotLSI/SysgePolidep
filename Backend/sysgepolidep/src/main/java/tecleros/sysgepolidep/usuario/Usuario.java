@@ -1,5 +1,6 @@
 package tecleros.sysgepolidep.usuario;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -44,6 +45,7 @@ public class Usuario {
     @Column(name = "Nombre_Usuario", nullable = false, unique = true, length = 50)
     private String nombreUsuario;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "Password", nullable = false, length = 255)
     private String password;
 

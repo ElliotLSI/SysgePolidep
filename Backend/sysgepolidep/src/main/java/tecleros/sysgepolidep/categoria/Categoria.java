@@ -29,6 +29,9 @@ public class Categoria {
     @Column(name = "DescripBeneficios", columnDefinition = "TEXT")
     private String descripBeneficios;
 
+    @Column(name = "Duracion_Meses", nullable = false)
+    private Integer duracionMeses = 1;
+
     @Column(name = "Activo")
     private Boolean activo = true;
 }

@@ -21,9 +21,16 @@ public class AuthController {
         return authService.login(request);
     }
 
+    @GetMapping("/prueba-rol")
+    public String pruebaRol() {
+        return "Tenés acceso a este endpoint.";
+    }
+
     @GetMapping("/roles/{idUsuario}")
     public List<String> obtenerRoles(@PathVariable Long idUsuario) {
 
         return rolService.obtenerRoles(idUsuario);
     }
+
+
 }

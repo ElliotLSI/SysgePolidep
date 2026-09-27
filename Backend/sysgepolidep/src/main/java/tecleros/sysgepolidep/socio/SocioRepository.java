@@ -11,5 +11,5 @@ public interface SocioRepository extends JpaRepository<Socio, Long> {
     // Método personalizado para buscar un socio por su número de socio
     Optional<Socio> findByNroSocio(Integer nroSocio);
     Optional<Socio> findByUsuarioIdUsuario(Long idUsuario);
-
+    Optional<Socio> findTopByOrderByNroSocioDesc();
 }

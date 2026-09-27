@@ -2,6 +2,7 @@ package tecleros.sysgepolidep.socio;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import tecleros.sysgepolidep.membresia.Membresia;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,14 @@ public class SocioController {
     @PostMapping
     public Socio crearSocio(@RequestBody Socio socio) {
         return socioService.guardarSocio(socio);
+    }
+
+    // POST: http://localhost:8080/api/socios/alta
+    @PostMapping("/alta")
+    public Membresia convertirEnSocio(
+            @RequestBody AltaSocioDTO dto) {
+
+        return socioService.convertirEnSocio(dto);
     }
 
     // DELETE: http://localhost:8080/api/socios/1

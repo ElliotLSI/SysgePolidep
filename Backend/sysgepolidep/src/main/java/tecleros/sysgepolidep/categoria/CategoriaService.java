@@ -75,6 +75,18 @@ public class CategoriaService {
             );
         }
 
+        if (categoria.getDuracionMeses() == null) {
+            throw new IllegalArgumentException(
+                    "La duración de la categoría es obligatoria."
+            );
+        }
+
+        if (categoria.getDuracionMeses() <= 0) {
+            throw new IllegalArgumentException(
+                    "La duración debe ser mayor a 0 meses."
+            );
+        }
+
         if (categoria.getActivo() == null) {
             categoria.setActivo(true);
         }

@@ -16,6 +16,7 @@ import tecleros.sysgepolidep.auth.JwtAuthenticationFilter;
 @Configuration
 public class SecurityConfig {
 
+
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -50,14 +51,26 @@ public class SecurityConfig {
 
                         // Permitir el login
                         .requestMatchers(
+                                HttpMethod.POST,
                                 "/api/auth/login"
                         ).permitAll()
+
+                        // Endpoint de prueba: solamente ADMINISTRADOR
+                        .requestMatchers(
+                                "/api/auth/prueba-rol"
+                        ).hasRole("ADMINISTRADOR")
+
+                        // Solo los administradores pueden crear administradores
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/administradores/**"
+                        ).hasRole("ADMINISTRADOR")
 
                         // Proteger el resto de los endpoints
                         .anyRequest().authenticated()
                 )
 
-                // Ejecutar nuestro filtro antes del filtro de usuario y contraseña
+                // Ejecutar el filtro JWT antes del filtro de usuario y contraseña
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -65,4 +78,6 @@ public class SecurityConfig {
 
         return http.build();
     }
+
+
 }

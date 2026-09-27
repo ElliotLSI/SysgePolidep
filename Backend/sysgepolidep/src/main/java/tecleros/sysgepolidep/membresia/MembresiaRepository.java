@@ -9,4 +9,8 @@ import java.util.List;
 public interface MembresiaRepository extends JpaRepository<Membresia, Long> {
     List<Membresia> findByEstado(String estado);
     List<Membresia> findBySocioIdUsuario(Long idUsuario);
+    List<Membresia> findBySocioIdUsuarioAndEstado(
+            Long idUsuario,
+            String estado
+    );
 }
