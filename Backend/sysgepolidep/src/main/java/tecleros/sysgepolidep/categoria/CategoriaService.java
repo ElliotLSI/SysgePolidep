@@ -104,4 +104,85 @@ public class CategoriaService {
 
         categoriaRepository.deleteById(id);
     }
+
+    public Categoria actualizarCategoria(Long id, Categoria datos) {
+
+        Categoria categoriaExistente =
+                categoriaRepository.findById(id)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "No existe una categoría con el ID indicado."
+                                )
+                        );
+
+        if (datos.getNombre() == null ||
+                datos.getNombre().trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "El nombre de la categoría es obligatorio."
+            );
+        }
+
+        Optional<Categoria> categoriaPorNombre =
+                categoriaRepository.findByNombre(datos.getNombre());
+
+        if (categoriaPorNombre.isPresent() &&
+                !categoriaPorNombre.get().getIdCategoria().equals(id)) {
+
+            throw new IllegalArgumentException(
+                    "Ya existe otra categoría con ese nombre."
+            );
+        }
+
+        if (datos.getCosto() == null) {
+            throw new IllegalArgumentException(
+                    "El costo es obligatorio."
+            );
+        }
+
+        if (datos.getCosto() < 0) {
+            throw new IllegalArgumentException(
+                    "El costo no puede ser negativo."
+            );
+        }
+
+        if (datos.getPorcDescuento() == null) {
+            throw new IllegalArgumentException(
+                    "El porcentaje de descuento es obligatorio."
+            );
+        }
+
+        if (datos.getPorcDescuento() < 0 ||
+                datos.getPorcDescuento() > 100) {
+
+            throw new IllegalArgumentException(
+                    "El porcentaje de descuento debe estar entre 0 y 100."
+            );
+        }
+
+        if (datos.getDuracionMeses() == null) {
+            throw new IllegalArgumentException(
+                    "La duración de la categoría es obligatoria."
+            );
+        }
+
+        if (datos.getDuracionMeses() <= 0) {
+            throw new IllegalArgumentException(
+                    "La duración debe ser mayor a 0 meses."
+            );
+        }
+
+        if (datos.getActivo() == null) {
+            datos.setActivo(true);
+        }
+
+        categoriaExistente.setNombre(datos.getNombre());
+        categoriaExistente.setCosto(datos.getCosto());
+        categoriaExistente.setPorcDescuento(datos.getPorcDescuento());
+        categoriaExistente.setDescripBeneficios(datos.getDescripBeneficios());
+        categoriaExistente.setDuracionMeses(datos.getDuracionMeses());
+        categoriaExistente.setActivo(datos.getActivo());
+
+        return categoriaRepository.save(categoriaExistente);
+    }
 }

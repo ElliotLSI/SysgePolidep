@@ -28,6 +28,14 @@ public class InstalacionController {
         return instalacionService.guardarInstalacion(instalacion);
     }
 
+    @PutMapping("/{id}")
+    public Instalacion actualizarInstalacion(
+            @PathVariable Long id,
+            @RequestBody Instalacion instalacion) {
+
+        return instalacionService.actualizarInstalacion(id, instalacion);
+    }
+
     @DeleteMapping("/{id}")
     public void eliminarInstalacion(@PathVariable Long id) {
         instalacionService.eliminarInstalacion(id);
