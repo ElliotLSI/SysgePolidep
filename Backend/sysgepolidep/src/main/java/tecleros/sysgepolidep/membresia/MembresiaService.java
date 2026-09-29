@@ -1,10 +1,18 @@
 package tecleros.sysgepolidep.membresia;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import tecleros.sysgepolidep.categoria.Categoria;
 import tecleros.sysgepolidep.categoria.CategoriaRepository;
+import tecleros.sysgepolidep.pago.Pago;
+import tecleros.sysgepolidep.pago.PagoRepository;
 import tecleros.sysgepolidep.socio.SocioRepository;
+import tecleros.sysgepolidep.usuario.Usuario;
+import tecleros.sysgepolidep.usuario.UsuarioRepository;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,13 +30,38 @@ public class MembresiaService {
     @Autowired
     private SocioRepository socioRepository;
 
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private PagoRepository pagoRepository;
+
 
     // ==========================================================
     // LISTAR TODAS LAS MEMBRESÍAS
     // ==========================================================
 
     public List<Membresia> listarTodas() {
-        return membresiaRepository.findAll();
+
+        /*
+         * ADMINISTRADOR y EMPLEADO pueden consultar
+         * todas las membresías.
+         *
+         * Los demás usuarios solamente pueden consultar
+         * sus propias membresías.
+         */
+
+        if (esAdministrador() || esEmpleado()) {
+            return membresiaRepository.findAll();
+        }
+
+        Usuario usuarioActual =
+                obtenerUsuarioActual();
+
+        return membresiaRepository
+                .findBySocioIdUsuario(
+                        usuarioActual.getIdUsuario()
+                );
     }
 
 
@@ -37,7 +70,49 @@ public class MembresiaService {
     // ==========================================================
 
     public Optional<Membresia> buscarPorId(Long id) {
-        return membresiaRepository.findById(id);
+
+        if (id == null) {
+            throw new IllegalArgumentException(
+                    "El ID de la membresía es obligatorio."
+            );
+        }
+
+        Optional<Membresia> membresiaOpt =
+                membresiaRepository.findById(id);
+
+        if (membresiaOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Membresia membresia =
+                membresiaOpt.get();
+
+        /*
+         * ADMINISTRADOR y EMPLEADO pueden consultar
+         * cualquier membresía.
+         */
+
+        if (esAdministrador() || esEmpleado()) {
+            return Optional.of(membresia);
+        }
+
+        Usuario usuarioActual =
+                obtenerUsuarioActual();
+
+        if (membresia.getSocio() == null ||
+                membresia.getSocio().getIdUsuario() == null ||
+                !membresia.getSocio()
+                        .getIdUsuario()
+                        .equals(
+                                usuarioActual.getIdUsuario()
+                        )) {
+
+            throw new IllegalArgumentException(
+                    "No tenés permiso para consultar esta membresía."
+            );
+        }
+
+        return Optional.of(membresia);
     }
 
 
@@ -45,7 +120,8 @@ public class MembresiaService {
     // CREAR / GUARDAR MEMBRESÍA
     // ==========================================================
 
-    public Membresia guardarMembresia(Membresia membresia) {
+    public Membresia guardarMembresia(
+            Membresia membresia) {
 
         if (membresia == null) {
             throw new IllegalArgumentException(
@@ -59,7 +135,8 @@ public class MembresiaService {
         // ------------------------------------------------------
 
         if (membresia.getCategoria() == null ||
-                membresia.getCategoria().getIdCategoria() == null) {
+                membresia.getCategoria()
+                        .getIdCategoria() == null) {
 
             throw new IllegalArgumentException(
                     "La membresía debe tener una categoría."
@@ -67,15 +144,19 @@ public class MembresiaService {
         }
 
         Long idCategoria =
-                membresia.getCategoria().getIdCategoria();
+                membresia.getCategoria()
+                        .getIdCategoria();
 
         Categoria categoria =
-                categoriaRepository.findById(idCategoria)
+                categoriaRepository
+                        .findById(idCategoria)
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
                                         "La categoría asociada no existe."
                                 )
                         );
+
+        membresia.setCategoria(categoria);
 
 
         // ------------------------------------------------------
@@ -91,9 +172,12 @@ public class MembresiaService {
         }
 
         Long idSocio =
-                membresia.getSocio().getIdUsuario();
+                membresia.getSocio()
+                        .getIdUsuario();
 
-        if (socioRepository.findById(idSocio).isEmpty()) {
+        if (socioRepository
+                .findById(idSocio)
+                .isEmpty()) {
 
             throw new IllegalArgumentException(
                     "El socio asociado no existe."
@@ -120,7 +204,9 @@ public class MembresiaService {
         }
 
         if (!membresia.getFechaVenc()
-                .isAfter(membresia.getFechaInicio())) {
+                .isAfter(
+                        membresia.getFechaInicio()
+                )) {
 
             throw new IllegalArgumentException(
                     "La fecha de vencimiento debe ser posterior a la fecha de inicio."
@@ -133,13 +219,17 @@ public class MembresiaService {
         // ------------------------------------------------------
 
         if (membresia.getEstado() == null ||
-                membresia.getEstado().trim().isEmpty()) {
+                membresia.getEstado()
+                        .trim()
+                        .isEmpty()) {
 
             membresia.setEstado("VIGENTE");
         }
 
         String estado =
-                membresia.getEstado().toUpperCase();
+                membresia.getEstado()
+                        .trim()
+                        .toUpperCase();
 
         if (!estado.equals("VIGENTE") &&
                 !estado.equals("VENCIDA") &&
@@ -153,7 +243,9 @@ public class MembresiaService {
         membresia.setEstado(estado);
 
 
-        return membresiaRepository.save(membresia);
+        return membresiaRepository.save(
+                membresia
+        );
     }
 
 
@@ -161,14 +253,24 @@ public class MembresiaService {
     // RENOVAR MEMBRESÍA
     // ==========================================================
 
-    public Membresia renovarMembresia(Long idMembresia) {
+    @Transactional
+    public Membresia renovarMembresia(
+            Long idMembresia) {
+
+        if (idMembresia == null) {
+            throw new IllegalArgumentException(
+                    "El ID de la membresía es obligatorio."
+            );
+        }
+
 
         // ------------------------------------------------------
         // BUSCAR MEMBRESÍA
         // ------------------------------------------------------
 
         Membresia membresia =
-                membresiaRepository.findById(idMembresia)
+                membresiaRepository
+                        .findById(idMembresia)
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
                                         "Membresía no encontrada con ID: "
@@ -178,11 +280,38 @@ public class MembresiaService {
 
 
         // ------------------------------------------------------
+        // VERIFICAR PROPIETARIO
+        // ------------------------------------------------------
+
+        if (!esAdministrador() &&
+                !esEmpleado()) {
+
+            Usuario usuarioActual =
+                    obtenerUsuarioActual();
+
+            if (membresia.getSocio() == null ||
+                    membresia.getSocio()
+                            .getIdUsuario() == null ||
+                    !membresia.getSocio()
+                            .getIdUsuario()
+                            .equals(
+                                    usuarioActual.getIdUsuario()
+                            )) {
+
+                throw new IllegalArgumentException(
+                        "No tenés permiso para renovar esta membresía."
+                );
+            }
+        }
+
+
+        // ------------------------------------------------------
         // VERIFICAR CATEGORÍA
         // ------------------------------------------------------
 
         if (membresia.getCategoria() == null ||
-                membresia.getCategoria().getIdCategoria() == null) {
+                membresia.getCategoria()
+                        .getIdCategoria() == null) {
 
             throw new IllegalArgumentException(
                     "La membresía no tiene una categoría asociada."
@@ -191,7 +320,8 @@ public class MembresiaService {
 
 
         Categoria categoria =
-                categoriaRepository.findById(
+                categoriaRepository
+                        .findById(
                                 membresia.getCategoria()
                                         .getIdCategoria()
                         )
@@ -200,6 +330,19 @@ public class MembresiaService {
                                         "La categoría asociada no existe."
                                 )
                         );
+
+
+        // ------------------------------------------------------
+        // VERIFICAR CATEGORÍA ACTIVA
+        // ------------------------------------------------------
+
+        if (Boolean.FALSE.equals(
+                categoria.getActivo())) {
+
+            throw new IllegalArgumentException(
+                    "La categoría de la membresía no está activa."
+            );
+        }
 
 
         // ------------------------------------------------------
@@ -216,10 +359,58 @@ public class MembresiaService {
 
 
         // ------------------------------------------------------
+        // VERIFICAR COSTO
+        // ------------------------------------------------------
+
+        if (categoria.getCosto() == null ||
+                categoria.getCosto() < 0) {
+
+            throw new IllegalArgumentException(
+                    "La categoría no tiene un costo válido."
+            );
+        }
+
+
+        // ------------------------------------------------------
+        // VERIFICAR PAGO APROBADO
+        // ------------------------------------------------------
+
+        /*
+         * La membresía solamente puede renovarse si existe
+         * un pago APROBADO asociado a esta membresía.
+         */
+
+        List<Pago> pagos =
+                pagoRepository.findAll()
+                        .stream()
+                        .filter(p ->
+                                p.getIdMembresia() != null &&
+                                        p.getIdMembresia()
+                                                .equals(idMembresia) &&
+                                        "APROBADO".equals(
+                                                p.getEstado()
+                                        ) &&
+                                        p.getMontoTotal() != null &&
+                                        p.getMontoTotal()
+                                                >= categoria.getCosto()
+                        )
+                        .toList();
+
+
+        if (pagos.isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "No existe un pago aprobado suficiente para renovar esta membresía."
+            );
+        }
+
+
+        // ------------------------------------------------------
         // CALCULAR NUEVA VIGENCIA
         // ------------------------------------------------------
 
-        LocalDate fechaInicio = LocalDate.now();
+        LocalDate fechaInicio =
+                LocalDate.now();
 
         LocalDate fechaVencimiento =
                 fechaInicio.plusMonths(
@@ -231,18 +422,28 @@ public class MembresiaService {
         // ACTUALIZAR MEMBRESÍA
         // ------------------------------------------------------
 
-        membresia.setFechaInicio(fechaInicio);
+        membresia.setCategoria(categoria);
 
-        membresia.setFechaVenc(fechaVencimiento);
+        membresia.setFechaInicio(
+                fechaInicio
+        );
 
-        membresia.setEstado("VIGENTE");
+        membresia.setFechaVenc(
+                fechaVencimiento
+        );
+
+        membresia.setEstado(
+                "VIGENTE"
+        );
 
 
         // ------------------------------------------------------
         // GUARDAR
         // ------------------------------------------------------
 
-        return membresiaRepository.save(membresia);
+        return membresiaRepository.save(
+                membresia
+        );
     }
 
 
@@ -250,15 +451,140 @@ public class MembresiaService {
     // ELIMINAR MEMBRESÍA
     // ==========================================================
 
-    public void eliminarMembresia(Long id) {
+    @Transactional
+    public void eliminarMembresia(
+            Long id) {
 
-        if (!membresiaRepository.existsById(id)) {
+        if (!esAdministrador()) {
 
             throw new IllegalArgumentException(
-                    "Membresía no encontrada con ID: " + id
+                    "Solo un administrador puede eliminar membresías."
             );
         }
 
+
+        if (id == null) {
+
+            throw new IllegalArgumentException(
+                    "El ID de la membresía es obligatorio."
+            );
+        }
+
+
+        if (!membresiaRepository
+                .existsById(id)) {
+
+            throw new IllegalArgumentException(
+                    "Membresía no encontrada con ID: "
+                            + id
+            );
+        }
+
+
         membresiaRepository.deleteById(id);
+    }
+
+
+    // ==========================================================
+    // OBTENER USUARIO AUTENTICADO
+    // ==========================================================
+
+    private Usuario obtenerUsuarioActual() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+
+        if (authentication == null ||
+                !authentication.isAuthenticated()) {
+
+            throw new IllegalArgumentException(
+                    "No hay un usuario autenticado."
+            );
+        }
+
+
+        String nombreUsuario =
+                authentication.getName();
+
+
+        if (nombreUsuario == null ||
+                nombreUsuario.trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "No se pudo identificar al usuario autenticado."
+            );
+        }
+
+
+        return usuarioRepository
+                .findByNombreUsuario(
+                        nombreUsuario
+                )
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "El usuario autenticado no existe."
+                        )
+                );
+    }
+
+
+    // ==========================================================
+    // VERIFICAR ADMINISTRADOR
+    // ==========================================================
+
+    private boolean esAdministrador() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+
+        if (authentication == null) {
+            return false;
+        }
+
+
+        return authentication
+                .getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        "ROLE_ADMINISTRADOR"
+                                .equals(
+                                        authority.getAuthority()
+                                )
+                );
+    }
+
+
+    // ==========================================================
+    // VERIFICAR EMPLEADO
+    // ==========================================================
+
+    private boolean esEmpleado() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+
+        if (authentication == null) {
+            return false;
+        }
+
+
+        return authentication
+                .getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        "ROLE_EMPLEADO"
+                                .equals(
+                                        authority.getAuthority()
+                                )
+                );
     }
 }

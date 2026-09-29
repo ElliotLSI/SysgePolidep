@@ -1,8 +1,12 @@
-package tecleros.sysgepolidep.reservaAFavor;
+
+        package tecleros.sysgepolidep.reservaAFavor;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import tecleros.sysgepolidep.instalacion.Instalacion;
 import tecleros.sysgepolidep.instalacion.InstalacionRepository;
 import tecleros.sysgepolidep.reserva.Reserva;
@@ -11,6 +15,7 @@ import tecleros.sysgepolidep.usuario.Usuario;
 import tecleros.sysgepolidep.usuario.UsuarioRepository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,17 +36,101 @@ public class ReservaAFavorService {
     private InstalacionRepository instalacionRepository;
 
 
+    // ============================================================
+    // LISTAR TODAS
+    // ============================================================
+
     public List<ReservaAFavor> listarTodas() {
-        return reservaAFavorRepository.findAll();
+
+        /*
+         * ADMINISTRADOR y EMPLEADO pueden consultar
+         * todos los créditos.
+         *
+         * Los demás usuarios solamente pueden consultar
+         * sus propios créditos.
+         */
+
+        if (esAdministrador() || esEmpleado()) {
+            return reservaAFavorRepository.findAll();
+        }
+
+        Usuario usuarioActual =
+                obtenerUsuarioActual();
+
+        return reservaAFavorRepository
+                .findByUsuarioIdUsuario(
+                        usuarioActual.getIdUsuario()
+                );
     }
 
+
+    // ============================================================
+    // BUSCAR POR ID
+    // ============================================================
 
     public Optional<ReservaAFavor> buscarPorId(Long id) {
-        return reservaAFavorRepository.findById(id);
+
+        if (id == null) {
+            throw new IllegalArgumentException(
+                    "El ID de la reserva a favor es obligatorio."
+            );
+        }
+
+        Optional<ReservaAFavor> reservaAFavorOpt =
+                reservaAFavorRepository.findById(id);
+
+        if (reservaAFavorOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ReservaAFavor reservaAFavor =
+                reservaAFavorOpt.get();
+
+        /*
+         * ADMINISTRADOR y EMPLEADO pueden consultar
+         * cualquier crédito.
+         */
+
+        if (esAdministrador() || esEmpleado()) {
+            return Optional.of(reservaAFavor);
+        }
+
+        /*
+         * Usuario normal solamente puede consultar
+         * su propio crédito.
+         */
+
+        Usuario usuarioActual =
+                obtenerUsuarioActual();
+
+        if (reservaAFavor.getUsuario() == null ||
+                !reservaAFavor.getUsuario()
+                        .getIdUsuario()
+                        .equals(
+                                usuarioActual.getIdUsuario()
+                        )) {
+
+            throw new IllegalArgumentException(
+                    "No tenés permiso para consultar esta reserva a favor."
+            );
+        }
+
+        return Optional.of(reservaAFavor);
     }
 
 
-    public List<ReservaAFavor> buscarPorUsuario(Long idUsuario) {
+    // ============================================================
+    // BUSCAR POR USUARIO
+    // ============================================================
+
+    public List<ReservaAFavor> buscarPorUsuario(
+            Long idUsuario) {
+
+        if (idUsuario == null) {
+            throw new IllegalArgumentException(
+                    "El ID del usuario es obligatorio."
+            );
+        }
 
         if (usuarioRepository.findById(idUsuario).isEmpty()) {
             throw new IllegalArgumentException(
@@ -49,25 +138,108 @@ public class ReservaAFavorService {
             );
         }
 
-        return reservaAFavorRepository.findByUsuarioIdUsuario(idUsuario);
-    }
+        /*
+         * ADMINISTRADOR y EMPLEADO pueden consultar
+         * créditos de cualquier usuario.
+         */
 
+        if (esAdministrador() || esEmpleado()) {
 
-    public List<ReservaAFavor> buscarDisponiblesPorUsuario(Long idUsuario) {
+            return reservaAFavorRepository
+                    .findByUsuarioIdUsuario(idUsuario);
+        }
 
-        if (usuarioRepository.findById(idUsuario).isEmpty()) {
+        /*
+         * Usuario normal solamente puede consultar
+         * sus propios créditos.
+         */
+
+        Usuario usuarioActual =
+                obtenerUsuarioActual();
+
+        if (!usuarioActual.getIdUsuario()
+                .equals(idUsuario)) {
+
             throw new IllegalArgumentException(
-                    "El usuario no existe."
+                    "No podés consultar las reservas a favor de otro usuario."
             );
         }
 
         return reservaAFavorRepository
-                .findByUsuarioIdUsuarioAndUtilizadaFalse(idUsuario);
+                .findByUsuarioIdUsuario(idUsuario);
     }
 
 
+    // ============================================================
+    // BUSCAR DISPONIBLES POR USUARIO
+    // ============================================================
+
+    public List<ReservaAFavor> buscarDisponiblesPorUsuario(
+            Long idUsuario) {
+
+        if (idUsuario == null) {
+            throw new IllegalArgumentException(
+                    "El ID del usuario es obligatorio."
+            );
+        }
+
+        if (usuarioRepository.findById(idUsuario).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "El usuario no existe."
+            );
+        }
+
+        /*
+         * ADMINISTRADOR y EMPLEADO pueden consultar
+         * los créditos de cualquier usuario.
+         */
+
+        if (esAdministrador() || esEmpleado()) {
+
+            return reservaAFavorRepository
+                    .findByUsuarioIdUsuarioAndUtilizadaFalse(
+                            idUsuario
+                    );
+        }
+
+        /*
+         * Usuario normal solamente puede consultar
+         * sus propios créditos.
+         */
+
+        Usuario usuarioActual =
+                obtenerUsuarioActual();
+
+        if (!usuarioActual.getIdUsuario()
+                .equals(idUsuario)) {
+
+            throw new IllegalArgumentException(
+                    "No podés consultar las reservas a favor de otro usuario."
+            );
+        }
+
+        return reservaAFavorRepository
+                .findByUsuarioIdUsuarioAndUtilizadaFalse(
+                        idUsuario
+                );
+    }
+
+
+    // ============================================================
+    // CREAR RESERVA A FAVOR
+    // ============================================================
+
+    @Transactional
     public ReservaAFavor crearReservaAFavor(
             ReservaAFavor reservaAFavor) {
+
+        /*
+         * Este método actualmente no debería ser llamado
+         * directamente por un usuario.
+         *
+         * Los créditos se generan automáticamente cuando
+         * se cancela una reserva desde ReservaService.
+         */
 
         if (reservaAFavor == null) {
             throw new IllegalArgumentException(
@@ -76,9 +248,13 @@ public class ReservaAFavorService {
         }
 
 
-        // Validar reserva de origen
+        // ========================================================
+        // RESERVA DE ORIGEN
+        // ========================================================
+
         if (reservaAFavor.getReservaOrigen() == null ||
-                reservaAFavor.getReservaOrigen().getIdReserva() == null) {
+                reservaAFavor.getReservaOrigen()
+                        .getIdReserva() == null) {
 
             throw new IllegalArgumentException(
                     "La reserva a favor debe estar asociada a una reserva de origen."
@@ -86,19 +262,35 @@ public class ReservaAFavorService {
         }
 
         Long idReserva =
-                reservaAFavor.getReservaOrigen().getIdReserva();
+                reservaAFavor.getReservaOrigen()
+                        .getIdReserva();
 
-        Optional<Reserva> reservaExistente =
-                reservaRepository.findById(idReserva);
+        Reserva reservaExistente =
+                reservaRepository.findById(idReserva)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "La reserva de origen no existe."
+                                )
+                        );
 
-        if (reservaExistente.isEmpty()) {
+
+        // ========================================================
+        // VERIFICAR ESTADO DE RESERVA DE ORIGEN
+        // ========================================================
+
+        if (!"CANCELADA".equals(
+                reservaExistente.getEstado())) {
+
             throw new IllegalArgumentException(
-                    "La reserva de origen no existe."
+                    "Solo se puede generar una reserva a favor a partir de una reserva cancelada."
             );
         }
 
 
-        // Evitar dos reservas a favor para la misma reserva
+        // ========================================================
+        // EVITAR DUPLICADOS
+        // ========================================================
+
         if (reservaAFavorRepository
                 .findByReservaOrigenIdReserva(idReserva)
                 .isPresent()) {
@@ -109,88 +301,98 @@ public class ReservaAFavorService {
         }
 
 
-        // Validar usuario
-        if (reservaAFavor.getUsuario() == null ||
-                reservaAFavor.getUsuario().getIdUsuario() == null) {
+        // ========================================================
+        // USUARIO
+        // ========================================================
+
+        /*
+         * El usuario del crédito debe ser el mismo usuario
+         * propietario de la reserva cancelada.
+         *
+         * No confiamos en un usuario enviado por el cliente.
+         */
+
+        Usuario usuario =
+                reservaExistente.getUsuario();
+
+        if (usuario == null ||
+                usuario.getIdUsuario() == null) {
 
             throw new IllegalArgumentException(
-                    "La reserva a favor debe estar asociada a un usuario."
-            );
-        }
-
-        Long idUsuario =
-                reservaAFavor.getUsuario().getIdUsuario();
-
-        Optional<Usuario> usuarioExistente =
-                usuarioRepository.findById(idUsuario);
-
-        if (usuarioExistente.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "El usuario asociado no existe."
+                    "La reserva de origen no tiene un usuario válido."
             );
         }
 
 
-        // Validar monto
-        if (reservaAFavor.getMontoAcreditado() == null) {
-            throw new IllegalArgumentException(
-                    "El monto acreditado es obligatorio."
-            );
-        }
+        // ========================================================
+        // MONTO
+        // ========================================================
 
-        if (reservaAFavor.getMontoAcreditado() <= 0) {
-            throw new IllegalArgumentException(
-                    "El monto acreditado debe ser mayor a 0."
-            );
-        }
+        /*
+         * El monto sale directamente de la reserva cancelada.
+         * El cliente no puede decidir cuánto crédito generar.
+         */
 
+        Double monto =
+                reservaExistente.getMontoTotal();
 
-        // Fecha de generación
-        if (reservaAFavor.getFechaGeneracion() == null) {
-            reservaAFavor.setFechaGeneracion(
-                    LocalDate.now()
-            );
-        }
-
-
-        // Fecha de vencimiento
-        if (reservaAFavor.getFechaVencimiento() == null) {
-
-            reservaAFavor.setFechaVencimiento(
-                    reservaAFavor.getFechaGeneracion()
-                            .plusMonths(3)
-            );
-        }
-
-
-        if (!reservaAFavor.getFechaVencimiento()
-                .isAfter(reservaAFavor.getFechaGeneracion())) {
+        if (monto == null || monto <= 0) {
 
             throw new IllegalArgumentException(
-                    "La fecha de vencimiento debe ser posterior a la fecha de generación."
+                    "La reserva de origen no tiene un monto válido para generar crédito."
             );
         }
 
 
-        // Estado de utilización
-        if (reservaAFavor.getUtilizada() == null) {
-            reservaAFavor.setUtilizada(false);
-        }
+        // ========================================================
+        // FECHA DE GENERACIÓN
+        // ========================================================
+
+        LocalDate fechaGeneracion =
+                LocalDate.now();
 
 
-        // Asociar entidades reales
+        // ========================================================
+        // FECHA DE VENCIMIENTO
+        // ========================================================
+
+        LocalDate fechaVencimiento =
+                fechaGeneracion.plusMonths(3);
+
+
+        // ========================================================
+        // CREAR OBJETO
+        // ========================================================
+
+        reservaAFavor.setMontoAcreditado(monto);
+
+        reservaAFavor.setFechaGeneracion(
+                fechaGeneracion
+        );
+
+        reservaAFavor.setFechaVencimiento(
+                fechaVencimiento
+        );
+
+        reservaAFavor.setUtilizada(false);
+
         reservaAFavor.setReservaOrigen(
-                reservaExistente.get()
+                reservaExistente
         );
 
         reservaAFavor.setUsuario(
-                usuarioExistente.get()
+                usuario
         );
 
 
-        return reservaAFavorRepository.save(reservaAFavor);
+        return reservaAFavorRepository
+                .save(reservaAFavor);
     }
 
+
+    // ============================================================
+    // REPROGRAMAR RESERVA
+    // ============================================================
 
     @Transactional
     public Reserva reprogramarReserva(
@@ -201,19 +403,72 @@ public class ReservaAFavorService {
             Long idInstalacion) {
 
 
-        // 1. Buscar ReservaAFavor
+        // ========================================================
+        // VALIDAR ID
+        // ========================================================
+
+        if (idReservaAFavor == null) {
+
+            throw new IllegalArgumentException(
+                    "El ID de la reserva a favor es obligatorio."
+            );
+        }
+
+
+        // ========================================================
+        // BUSCAR RESERVA A FAVOR
+        // ========================================================
+
         ReservaAFavor reservaAFavor =
-                reservaAFavorRepository.findById(idReservaAFavor)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Reserva a favor no encontrada con ID: "
-                                                + idReservaAFavor
-                                )
-                        );
+                reservaAFavorRepository.findById(
+                        idReservaAFavor
+                ).orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Reserva a favor no encontrada con ID: "
+                                        + idReservaAFavor
+                        )
+                );
 
 
-        // 2. Verificar que no esté utilizada
-        if (reservaAFavor.getUtilizada()) {
+        // ========================================================
+        // VERIFICAR PROPIETARIO
+        // ========================================================
+
+        Usuario usuarioActual =
+                obtenerUsuarioActual();
+
+        boolean esPropietario =
+                reservaAFavor.getUsuario() != null &&
+                        reservaAFavor.getUsuario()
+                                .getIdUsuario()
+                                .equals(
+                                        usuarioActual.getIdUsuario()
+                                );
+
+        /*
+         * Un usuario normal solamente puede utilizar
+         * su propio crédito.
+         *
+         * ADMINISTRADOR y EMPLEADO pueden realizar
+         * operaciones administrativas.
+         */
+
+        if (!esAdministrador() &&
+                !esEmpleado() &&
+                !esPropietario) {
+
+            throw new IllegalArgumentException(
+                    "No tenés permiso para utilizar esta reserva a favor."
+            );
+        }
+
+
+        // ========================================================
+        // VERIFICAR UTILIZACIÓN
+        // ========================================================
+
+        if (Boolean.TRUE.equals(
+                reservaAFavor.getUtilizada())) {
 
             throw new IllegalArgumentException(
                     "La reserva a favor ya fue utilizada."
@@ -221,9 +476,20 @@ public class ReservaAFavorService {
         }
 
 
-        // 3. Verificar vencimiento
-        if (!LocalDate.now()
-                .isBefore(reservaAFavor.getFechaVencimiento())) {
+        // ========================================================
+        // VERIFICAR VENCIMIENTO
+        // ========================================================
+
+        if (reservaAFavor.getFechaVencimiento() == null) {
+
+            throw new IllegalArgumentException(
+                    "La reserva a favor no tiene fecha de vencimiento."
+            );
+        }
+
+        if (!LocalDate.now().isBefore(
+                reservaAFavor.getFechaVencimiento()
+        )) {
 
             throw new IllegalArgumentException(
                     "La reserva a favor se encuentra vencida."
@@ -231,7 +497,10 @@ public class ReservaAFavorService {
         }
 
 
-        // 4. Validar fecha
+        // ========================================================
+        // VALIDAR FECHA
+        // ========================================================
+
         if (nuevaFecha == null) {
 
             throw new IllegalArgumentException(
@@ -239,8 +508,18 @@ public class ReservaAFavorService {
             );
         }
 
+        if (nuevaFecha.isBefore(LocalDate.now())) {
 
-        // 5. Validar hora
+            throw new IllegalArgumentException(
+                    "No se puede reprogramar una reserva para una fecha pasada."
+            );
+        }
+
+
+        // ========================================================
+        // VALIDAR HORA
+        // ========================================================
+
         if (nuevaHora == null) {
 
             throw new IllegalArgumentException(
@@ -249,7 +528,10 @@ public class ReservaAFavorService {
         }
 
 
-        // 6. Validar duración
+        // ========================================================
+        // VALIDAR DURACIÓN
+        // ========================================================
+
         if (nuevaDuracion == null ||
                 nuevaDuracion <= 0) {
 
@@ -258,8 +540,33 @@ public class ReservaAFavorService {
             );
         }
 
+        if (nuevaDuracion > 24) {
 
-        // 7. Validar instalación
+            throw new IllegalArgumentException(
+                    "La duración no puede superar las 24 horas."
+            );
+        }
+
+
+        // ========================================================
+        // CALCULAR FIN
+        // ========================================================
+
+        LocalTime nuevaFin =
+                nuevaHora.plusHours(nuevaDuracion);
+
+        if (!nuevaFin.isAfter(nuevaHora)) {
+
+            throw new IllegalArgumentException(
+                    "La reserva no puede extenderse más allá de la medianoche."
+            );
+        }
+
+
+        // ========================================================
+        // VALIDAR INSTALACIÓN
+        // ========================================================
+
         if (idInstalacion == null) {
 
             throw new IllegalArgumentException(
@@ -268,15 +575,32 @@ public class ReservaAFavorService {
         }
 
         Instalacion instalacion =
-                instalacionRepository.findById(idInstalacion)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "La instalación no existe."
-                                )
-                        );
+                instalacionRepository.findById(
+                        idInstalacion
+                ).orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "La instalación no existe."
+                        )
+                );
 
 
-        // 8. Buscar reservas existentes
+        // ========================================================
+        // VERIFICAR ESTADO DE INSTALACIÓN
+        // ========================================================
+
+        if (!"DISPONIBLE".equalsIgnoreCase(
+                instalacion.getEstado())) {
+
+            throw new IllegalArgumentException(
+                    "La instalación no está disponible para reservar."
+            );
+        }
+
+
+        // ========================================================
+        // BUSCAR RESERVAS EXISTENTES
+        // ========================================================
+
         List<Reserva> existentes =
                 reservaRepository
                         .findReservasActivasPorInstalacionYFecha(
@@ -285,13 +609,17 @@ public class ReservaAFavorService {
                         );
 
 
-        // 9. Calcular horario nuevo
-        LocalTime nuevaFin =
-                nuevaHora.plusHours(nuevaDuracion);
+        // ========================================================
+        // COMPROBAR SOLAPAMIENTO
+        // ========================================================
 
-
-        // 10. Comprobar solapamiento
         for (Reserva r : existentes) {
+
+            if (r.getHoraInicio() == null ||
+                    r.getDuracionHoras() == null) {
+
+                continue;
+            }
 
             LocalTime rInicio =
                     r.getHoraInicio();
@@ -301,11 +629,9 @@ public class ReservaAFavorService {
                             r.getDuracionHoras()
                     );
 
-
             boolean haySolapamiento =
                     nuevaHora.isBefore(rFin) &&
                             nuevaFin.isAfter(rInicio);
-
 
             if (haySolapamiento) {
 
@@ -316,12 +642,25 @@ public class ReservaAFavorService {
         }
 
 
-        // 11. Obtener usuario de la ReservaAFavor
+        // ========================================================
+        // OBTENER USUARIO DEL CRÉDITO
+        // ========================================================
+
         Usuario usuario =
                 reservaAFavor.getUsuario();
 
+        if (usuario == null) {
 
-        // 12. Crear nueva reserva
+            throw new IllegalArgumentException(
+                    "La reserva a favor no tiene un usuario asociado."
+            );
+        }
+
+
+        // ========================================================
+        // CREAR NUEVA RESERVA
+        // ========================================================
+
         Reserva nuevaReserva =
                 new Reserva();
 
@@ -337,16 +676,27 @@ public class ReservaAFavorService {
                 nuevaDuracion
         );
 
+        /*
+         * El crédito ya representa dinero previamente
+         * acreditado, por eso la nueva reserva queda
+         * confirmada.
+         */
+
         nuevaReserva.setEstado(
                 "CONFIRMADA"
         );
+
+        /*
+         * El monto utilizado sale del crédito.
+         * No se recibe desde el cliente.
+         */
 
         nuevaReserva.setMontoTotal(
                 reservaAFavor.getMontoAcreditado()
         );
 
         nuevaReserva.setFechaCreacion(
-                java.time.LocalDateTime.now()
+                LocalDateTime.now()
         );
 
         nuevaReserva.setUsuario(
@@ -358,12 +708,20 @@ public class ReservaAFavorService {
         );
 
 
-        // 13. Guardar nueva reserva
+        // ========================================================
+        // GUARDAR NUEVA RESERVA
+        // ========================================================
+
         Reserva reservaCreada =
-                reservaRepository.save(nuevaReserva);
+                reservaRepository.save(
+                        nuevaReserva
+                );
 
 
-        // 14. Marcar ReservaAFavor como utilizada
+        // ========================================================
+        // MARCAR CRÉDITO COMO UTILIZADO
+        // ========================================================
+
         reservaAFavor.setUtilizada(true);
 
         reservaAFavorRepository.save(
@@ -375,18 +733,38 @@ public class ReservaAFavorService {
     }
 
 
+    // ============================================================
+    // MARCAR COMO UTILIZADA
+    // ============================================================
+
+    @Transactional
     public void marcarComoUtilizada(Long id) {
+
+        /*
+         * Este método es administrativo/interno.
+         * Los usuarios normales no deberían poder
+         * marcar créditos manualmente como utilizados.
+         */
+
+        if (!esAdministrador() && !esEmpleado()) {
+
+            throw new IllegalArgumentException(
+                    "No tenés permiso para marcar una reserva a favor como utilizada."
+            );
+        }
 
         ReservaAFavor reservaAFavor =
                 reservaAFavorRepository.findById(id)
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
-                                        "Reserva a favor no encontrada con ID: " + id
+                                        "Reserva a favor no encontrada con ID: "
+                                                + id
                                 )
                         );
 
 
-        if (reservaAFavor.getUtilizada()) {
+        if (Boolean.TRUE.equals(
+                reservaAFavor.getUtilizada())) {
 
             throw new IllegalArgumentException(
                     "La reserva a favor ya fue utilizada."
@@ -394,8 +772,17 @@ public class ReservaAFavorService {
         }
 
 
-        if (!LocalDate.now()
-                .isBefore(reservaAFavor.getFechaVencimiento())) {
+        if (reservaAFavor.getFechaVencimiento() == null) {
+
+            throw new IllegalArgumentException(
+                    "La reserva a favor no tiene fecha de vencimiento."
+            );
+        }
+
+
+        if (!LocalDate.now().isBefore(
+                reservaAFavor.getFechaVencimiento()
+        )) {
 
             throw new IllegalArgumentException(
                     "La reserva a favor se encuentra vencida."
@@ -411,7 +798,25 @@ public class ReservaAFavorService {
     }
 
 
+    // ============================================================
+    // ELIMINAR RESERVA A FAVOR
+    // ============================================================
+
+    @Transactional
     public void eliminarReservaAFavor(Long id) {
+
+        /*
+         * No permitimos que un usuario normal elimine
+         * créditos.
+         */
+
+        if (!esAdministrador()) {
+
+            throw new IllegalArgumentException(
+                    "Solo un administrador puede eliminar una reserva a favor."
+            );
+        }
+
 
         if (!reservaAFavorRepository.existsById(id)) {
 
@@ -420,6 +825,104 @@ public class ReservaAFavorService {
             );
         }
 
+
         reservaAFavorRepository.deleteById(id);
     }
+
+
+    // ============================================================
+    // OBTENER USUARIO AUTENTICADO
+    // ============================================================
+
+    private Usuario obtenerUsuarioActual() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null ||
+                !authentication.isAuthenticated()) {
+
+            throw new IllegalArgumentException(
+                    "No hay un usuario autenticado."
+            );
+        }
+
+
+        String nombreUsuario =
+                authentication.getName();
+
+        if (nombreUsuario == null ||
+                nombreUsuario.trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "No se pudo identificar al usuario autenticado."
+            );
+        }
+
+
+        return usuarioRepository
+                .findByNombreUsuario(nombreUsuario)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "El usuario autenticado no existe."
+                        )
+                );
+    }
+
+
+    // ============================================================
+    // VERIFICAR ADMINISTRADOR
+    // ============================================================
+
+    private boolean esAdministrador() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null) {
+            return false;
+        }
+
+
+        return authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        "ROLE_ADMINISTRADOR"
+                                .equals(
+                                        authority.getAuthority()
+                                )
+                );
+    }
+
+
+    // ============================================================
+    // VERIFICAR EMPLEADO
+    // ============================================================
+
+    private boolean esEmpleado() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null) {
+            return false;
+        }
+
+
+        return authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        "ROLE_EMPLEADO"
+                                .equals(
+                                        authority.getAuthority()
+                                )
+                );
+    }
 }
+
