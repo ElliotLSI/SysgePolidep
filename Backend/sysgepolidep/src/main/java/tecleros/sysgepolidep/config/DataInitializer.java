@@ -7,6 +7,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import tecleros.sysgepolidep.categoria.Categoria;
 import tecleros.sysgepolidep.categoria.CategoriaRepository;
+import tecleros.sysgepolidep.instalacion.Instalacion;
+import tecleros.sysgepolidep.instalacion.InstalacionRepository;
 import tecleros.sysgepolidep.membresia.Membresia;
 import tecleros.sysgepolidep.membresia.MembresiaRepository;
 import tecleros.sysgepolidep.socio.Socio;
@@ -31,14 +33,11 @@ public class DataInitializer {
             SocioRepository socioRepository,
             MembresiaRepository membresiaRepository,
             CategoriaRepository categoriaRepository,
+            InstalacionRepository instalacionRepository,
             PasswordEncoder passwordEncoder
     ) {
 
         return args -> {
-
-            // =========================================================
-            // CATEGORÍA DE MEMBRESÍA
-            // =========================================================
 
             Categoria categoria = categoriaRepository
                     .findByNombre("Membresía Estándar")
@@ -58,12 +57,68 @@ public class DataInitializer {
                         return categoriaRepository.save(nuevaCategoria);
                     });
 
+            crearInstalacion(
+                    instalacionRepository,
+                    "Cancha de Fútbol 5",
+                    "Cancha de Fútbol",
+                    10,
+                    15000.0,
+                    "DISPONIBLE"
+            );
 
-            // =========================================================
-            // USUARIO ADMINISTRADOR
-            // Usuario: admin
-            // Contraseña: Admin123
-            // =========================================================
+            crearInstalacion(
+                    instalacionRepository,
+                    "Cancha de Básquet",
+                    "Cancha de Básquet",
+                    12,
+                    10000.0,
+                    "DISPONIBLE"
+            );
+
+            crearInstalacion(
+                    instalacionRepository,
+                    "Cancha de Vóley",
+                    "Cancha de Vóley",
+                    12,
+                    8000.0,
+                    "DISPONIBLE"
+            );
+
+            crearInstalacion(
+                    instalacionRepository,
+                    "Pileta",
+                    "Pileta",
+                    30,
+                    12000.0,
+                    "DISPONIBLE"
+            );
+
+            crearInstalacion(
+                    instalacionRepository,
+                    "Salón de Usos Múltiples",
+                    "SUM",
+                    50,
+                    20000.0,
+                    "DISPONIBLE"
+            );
+
+            crearInstalacion(
+                    instalacionRepository,
+                    "Cancha de Tenis",
+                    "Cancha de Tenis",
+                    4,
+                    7000.0,
+                    "DISPONIBLE"
+            );
+
+            crearInstalacion(
+                    instalacionRepository,
+                    "Cancha de Fútbol 11",
+                    "Cancha de Fútbol",
+                    22,
+                    25000.0,
+                    "EN MANTENIMIENTO"
+            );
 
             Usuario admin = usuarioRepository
                     .findByNombreUsuario("admin")
@@ -74,9 +129,7 @@ public class DataInitializer {
                         nuevo.setNombre("Administrador");
                         nuevo.setApellido("SysGe");
                         nuevo.setDni("99999991");
-                        nuevo.setFechaNacimiento(
-                                LocalDate.of(1990, 1, 1)
-                        );
+                        nuevo.setFechaNacimiento(LocalDate.of(1990, 1, 1));
                         nuevo.setDomicilio("Polideportivo UNSE");
                         nuevo.setTelefono("3850000001");
                         nuevo.setEmail("admin@sysgepolidep.com");
@@ -90,29 +143,16 @@ public class DataInitializer {
                         return usuarioRepository.save(nuevo);
                     });
 
-
-            // Crear registro ADMINISTRADOR
             if (!administradorRepository.existsById(
                     admin.getIdUsuario())) {
 
-                Administrador administrador =
-                        new Administrador();
+                Administrador administrador = new Administrador();
 
-                administrador.setIdUsuario(
-                        admin.getIdUsuario()
-                );
-
+                administrador.setIdUsuario(admin.getIdUsuario());
                 administrador.setNivelAcceso(1);
 
                 administradorRepository.save(administrador);
             }
-
-
-            // =========================================================
-            // USUARIO EMPLEADO
-            // Usuario: empleado
-            // Contraseña: Empleado123
-            // =========================================================
 
             Usuario empleadoUsuario = usuarioRepository
                     .findByNombreUsuario("empleado")
@@ -123,9 +163,7 @@ public class DataInitializer {
                         nuevo.setNombre("Empleado");
                         nuevo.setApellido("Prueba");
                         nuevo.setDni("99999992");
-                        nuevo.setFechaNacimiento(
-                                LocalDate.of(1995, 1, 1)
-                        );
+                        nuevo.setFechaNacimiento(LocalDate.of(1995, 1, 1));
                         nuevo.setDomicilio("Polideportivo UNSE");
                         nuevo.setTelefono("3850000002");
                         nuevo.setEmail("empleado@sysgepolidep.com");
@@ -139,21 +177,10 @@ public class DataInitializer {
                         return usuarioRepository.save(nuevo);
                     });
 
-
-            // Crear registro EMPLEADO
             if (!empleadoRepository.existsById(
                     empleadoUsuario.getIdUsuario())) {
 
                 Empleado empleado = new Empleado();
-
-                /*
-                 * IMPORTANTE:
-                 * No hacemos setIdUsuario().
-                 *
-                 * La entidad Empleado utiliza @MapsId,
-                 * por lo que Hibernate obtiene el ID desde
-                 * el Usuario asociado.
-                 */
 
                 empleado.setLegajo(1001);
                 empleado.setTurno("Mañana");
@@ -161,13 +188,6 @@ public class DataInitializer {
 
                 empleadoRepository.save(empleado);
             }
-
-
-            // =========================================================
-            // USUARIO SOCIO
-            // Usuario: socio
-            // Contraseña: Socio123
-            // =========================================================
 
             Usuario socioUsuario = usuarioRepository
                     .findByNombreUsuario("socio")
@@ -178,9 +198,7 @@ public class DataInitializer {
                         nuevo.setNombre("Socio");
                         nuevo.setApellido("Prueba");
                         nuevo.setDni("99999993");
-                        nuevo.setFechaNacimiento(
-                                LocalDate.of(2000, 1, 1)
-                        );
+                        nuevo.setFechaNacimiento(LocalDate.of(2000, 1, 1));
                         nuevo.setDomicilio("Santiago del Estero");
                         nuevo.setTelefono("3850000003");
                         nuevo.setEmail("socio@sysgepolidep.com");
@@ -193,11 +211,6 @@ public class DataInitializer {
 
                         return usuarioRepository.save(nuevo);
                     });
-
-
-            // =========================================================
-            // REGISTRO DE SOCIO
-            // =========================================================
 
             Socio socio = socioRepository
                     .findByUsuarioIdUsuario(
@@ -221,11 +234,6 @@ public class DataInitializer {
                         return socioRepository.save(nuevoSocio);
                     });
 
-
-            // =========================================================
-            // MEMBRESÍA VIGENTE DEL SOCIO
-            // =========================================================
-
             boolean tieneMembresia =
                     !membresiaRepository
                             .findBySocioIdUsuarioAndEstado(
@@ -234,35 +242,22 @@ public class DataInitializer {
                             )
                             .isEmpty();
 
-
             if (!tieneMembresia) {
 
                 Membresia membresia = new Membresia();
 
                 membresia.setCategoria(categoria);
                 membresia.setSocio(socio);
-
-                membresia.setFechaInicio(
-                        LocalDate.now()
-                );
-
+                membresia.setFechaInicio(LocalDate.now());
                 membresia.setFechaVenc(
                         LocalDate.now().plusMonths(
                                 categoria.getDuracionMeses()
                         )
                 );
-
                 membresia.setEstado("VIGENTE");
 
                 membresiaRepository.save(membresia);
             }
-
-
-            // =========================================================
-            // USUARIO NORMAL
-            // Usuario: usuario
-            // Contraseña: Usuario123
-            // =========================================================
 
             usuarioRepository
                     .findByNombreUsuario("usuario")
@@ -273,9 +268,7 @@ public class DataInitializer {
                         nuevo.setNombre("Usuario");
                         nuevo.setApellido("Prueba");
                         nuevo.setDni("99999994");
-                        nuevo.setFechaNacimiento(
-                                LocalDate.of(2002, 1, 1)
-                        );
+                        nuevo.setFechaNacimiento(LocalDate.of(2002, 1, 1));
                         nuevo.setDomicilio("Santiago del Estero");
                         nuevo.setTelefono("3850000004");
                         nuevo.setEmail("usuario@sysgepolidep.com");
@@ -289,11 +282,6 @@ public class DataInitializer {
                         return usuarioRepository.save(nuevo);
                     });
 
-
-            // =========================================================
-            // MENSAJE FINAL
-            // =========================================================
-
             System.out.println();
             System.out.println(
                     "=================================================="
@@ -304,27 +292,37 @@ public class DataInitializer {
             System.out.println(
                     "=================================================="
             );
-
-            System.out.println(
-                    " ADMIN      -> admin / Admin123"
-            );
-
-            System.out.println(
-                    " EMPLEADO   -> empleado / Empleado123"
-            );
-
-            System.out.println(
-                    " SOCIO      -> socio / Socio123"
-            );
-
-            System.out.println(
-                    " USUARIO    -> usuario / Usuario123"
-            );
-
+            System.out.println(" ADMIN      -> admin / Admin123");
+            System.out.println(" EMPLEADO   -> empleado / Empleado123");
+            System.out.println(" SOCIO      -> socio / Socio123");
+            System.out.println(" USUARIO    -> usuario / Usuario123");
             System.out.println(
                     "=================================================="
             );
             System.out.println();
         };
+    }
+
+    private void crearInstalacion(
+            InstalacionRepository repository,
+            String nombre,
+            String tipo,
+            Integer capacidad,
+            Double tarifaBase,
+            String estado
+    ) {
+
+        if (repository.findByNombre(nombre).isEmpty()) {
+
+            Instalacion instalacion = new Instalacion();
+
+            instalacion.setNombre(nombre);
+            instalacion.setTipo(tipo);
+            instalacion.setCapacidad(capacidad);
+            instalacion.setTarifaBase(tarifaBase);
+            instalacion.setEstado(estado);
+
+            repository.save(instalacion);
+        }
     }
 }
