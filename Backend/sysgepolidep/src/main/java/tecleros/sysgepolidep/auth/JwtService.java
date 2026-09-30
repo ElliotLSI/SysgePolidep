@@ -3,6 +3,7 @@ package tecleros.sysgepolidep.auth;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -13,19 +14,16 @@ import java.util.List;
 @Service
 public class JwtService {
 
-    // Clave secreta para firmar los tokens.
-    // Más adelante la vamos a sacar del código y llevar a application.properties.
-    private static final String SECRET_KEY =
-            "SysGePoliDepClaveSecretaParaJWT2026Segura";
+    @Value("${jwt.secret}")
+    private String secretKey;
 
-    // Tiempo de duración del token: 1 hora
-    private static final long EXPIRATION_TIME =
-            1000 * 60 * 60;
+    @Value("${jwt.expiration}")
+    private long expirationTime;
 
     private SecretKey getSigningKey() {
 
         return Keys.hmacShaKeyFor(
-                SECRET_KEY.getBytes(StandardCharsets.UTF_8)
+                secretKey.getBytes(StandardCharsets.UTF_8)
         );
     }
 
@@ -37,7 +35,7 @@ public class JwtService {
         Date ahora = new Date();
 
         Date expiracion = new Date(
-                ahora.getTime() + EXPIRATION_TIME
+                ahora.getTime() + expirationTime
         );
 
         return Jwts.builder()

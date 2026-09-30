@@ -1,5 +1,4 @@
-
-        package tecleros.sysgepolidep.config;
+package tecleros.sysgepolidep.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -75,16 +74,24 @@ public class SecurityConfig {
             HttpSecurity http) throws Exception {
 
         http
+                // ==============================
                 // CORS
+                // ==============================
                 .cors(cors ->
                         cors.configurationSource(
                                 corsConfigurationSource()
                         )
                 )
 
-                // CSRF deshabilitado porque usamos JWT
+                // ==============================
+                // CSRF
+                // ==============================
+                // Deshabilitado porque usamos JWT
                 .csrf(csrf -> csrf.disable())
 
+                // ==============================
+                // SESIONES
+                // ==============================
                 // API REST sin sesiones
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
@@ -92,7 +99,9 @@ public class SecurityConfig {
                         )
                 )
 
+                // ==============================
                 // AUTORIZACIÓN
+                // ==============================
                 .authorizeHttpRequests(auth -> auth
 
                         // ==============================
@@ -132,7 +141,10 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/auth/roles/**"
-                        ).authenticated()
+                        ).hasAnyRole(
+                                "ADMINISTRADOR",
+                                "EMPLEADO"
+                        )
 
                         // ==============================
                         // ADMINISTRADORES
@@ -376,7 +388,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/api/usuarios/**"
-                        ).hasRole("ADMINISTRADOR")
+                        ).authenticated()
 
                         .requestMatchers(
                                 HttpMethod.DELETE,
@@ -402,4 +414,3 @@ public class SecurityConfig {
         return http.build();
     }
 }
-
