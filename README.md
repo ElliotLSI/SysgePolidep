@@ -413,6 +413,17 @@ La aplicación estará disponible normalmente en:
 
 `http://localhost:5173`
 
+Usuarios de prueba
+
+El sistema incluye usuarios de prueba precargados automáticamente al iniciar el backend. Estos usuarios permiten probar las diferentes funcionalidades según el rol asignado.
+
+Rol	Usuario	Contraseña	Descripción
+Administrador	admin	Admin123	Acceso a la gestión general del sistema
+Empleado	empleado	Empleado123	Acceso a operaciones administrativas
+Socio	socio	Socio123	Usuario con membresía vigente
+Usuario	usuario	Usuario123	Usuario registrado sin membresía
+
+
 ## API REST
 
 Principales endpoints:
