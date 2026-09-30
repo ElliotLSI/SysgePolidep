@@ -413,6 +413,28 @@ La aplicación estará disponible normalmente en:
 
 `http://localhost:5173`
 
+Usuarios de prueba
+
+## Usuarios de prueba
+
+El sistema incluye usuarios de prueba precargados automáticamente al iniciar el backend. Estos usuarios permiten probar las diferentes funcionalidades según el rol asignado.
+
+| Rol               | Usuario    | Contraseña    | Descripción                             |
+| ----------------- | ---------- | ------------- | --------------------------------------- |
+| **Administrador** | `admin`    | `Admin123`    | Acceso a la gestión general del sistema |
+| **Empleado**      | `empleado` | `Empleado123` | Acceso a operaciones administrativas    |
+| **Socio**         | `socio`    | `Socio123`    | Usuario con membresía vigente           |
+| **Usuario**       | `usuario`  | `Usuario123`  | Usuario registrado sin membresía        |
+
+### Permisos principales por rol
+
+* **Administrador:** gestión de usuarios, membresías, instalaciones, reservas y pagos.
+* **Empleado:** gestión de membresías, instalaciones y reservas.
+* **Socio:** gestión de sus reservas y pagos, además de funcionalidades relacionadas con su membresía.
+* **Usuario:** acceso básico al sistema. Puede registrarse y realizar operaciones permitidas para usuarios sin membresía.
+
+> **Nota:** Los usuarios de prueba son creados automáticamente mediante `DataInitializer` al iniciar el backend. Las contraseñas indicadas son únicamente para el entorno de demostración y pruebas del proyecto.
+
 ## API REST
 
 Principales endpoints:
