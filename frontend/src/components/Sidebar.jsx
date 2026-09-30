@@ -1,112 +1,109 @@
+import logo from "../assets/logo-sgp.png"
+
 function Sidebar({
-  cerrarSesion,
-  seccionActual,
-  setSeccionActual
-}) {
+                     cerrarSesion,
+                     seccionActual,
+                     setSeccionActual,
+                     roles
+                 }) {
 
-  return (
-    <aside className="sidebar">
+    const menus = [
+        {
+            id: "inicio",
+            nombre: "Inicio",
+            roles: [
+                "ADMINISTRADOR",
+                "EMPLEADO",
+                "SOCIO",
+                "USUARIO"
+            ]
+        },
+        {
+            id: "usuarios",
+            nombre: "Usuarios",
+            roles: [
+                "ADMINISTRADOR"
+            ]
+        },
+        {
+            id: "membresias",
+            nombre: "Membresías",
+            roles: [
+                "ADMINISTRADOR",
+                "EMPLEADO"
+            ]
+        },
+        {
+            id: "instalaciones",
+            nombre: "Instalaciones",
+            roles: [
+                "ADMINISTRADOR",
+                "EMPLEADO"
+            ]
+        },
+        {
+            id: "reservas",
+            nombre: "Reservas",
+            roles: [
+                "ADMINISTRADOR",
+                "EMPLEADO",
+                "SOCIO"
+            ]
+        },
+        {
+            id: "pagos",
+            nombre: "Pagos",
+            roles: [
+                "ADMINISTRADOR",
+                "SOCIO"
+            ]
+        }
+    ]
 
-      <div className="sidebar-logo">
+    const menusPermitidos = menus.filter(menu =>
+        menu.roles.some(rol =>
+            roles?.includes(rol)
+        )
+    )
 
-        <h2>
-          SysGe
-        </h2>
+    return (
+        <aside className="sidebar">
 
-        <span>
-          PoliDep
-        </span>
+            <div className="sidebar-logo">
+                <img
+                    src={logo}
+                    alt="SysGe PoliDep"
+                    className="logo-sgp"
+                />
+            </div>
 
-      </div>
+            <nav>
+                {menusPermitidos.map(menu => (
+                    <button
+                        key={menu.id}
+                        className={`menu-item ${
+                            seccionActual === menu.id
+                                ? "activo"
+                                : ""
+                        }`}
+                        onClick={() =>
+                            setSeccionActual(menu.id)
+                        }
+                    >
+                        {menu.nombre}
+                    </button>
+                ))}
+            </nav>
 
+            <button
+                className="cerrar-sesion"
+                onClick={cerrarSesion}
+            >
+                Cerrar sesión
+            </button>
 
-      <nav>
-
-        {/* INICIO */}
-
-        <button
-          className={`menu-item ${
-            seccionActual === "inicio" ? "activo" : ""
-          }`}
-          onClick={() => setSeccionActual("inicio")}
-        >
-          Inicio
-        </button>
-
-
-        {/* USUARIOS */}
-
-        <button
-          className={`menu-item ${
-            seccionActual === "usuarios" ? "activo" : ""
-          }`}
-          onClick={() => setSeccionActual("usuarios")}
-        >
-          Usuarios
-        </button>
-
-
-        {/* MEMBRESÍAS */}
-
-        <button
-          className={`menu-item ${
-            seccionActual === "membresias" ? "activo" : ""
-          }`}
-          onClick={() => setSeccionActual("membresias")}
-        >
-          Membresías
-        </button>
-
-
-        {/* INSTALACIONES */}
-
-        <button
-          className={`menu-item ${
-            seccionActual === "instalaciones" ? "activo" : ""
-          }`}
-          onClick={() => setSeccionActual("instalaciones")}
-        >
-          Instalaciones
-        </button>
-
-
-        {/* RESERVAS */}
-
-        <button
-          className={`menu-item ${
-            seccionActual === "reservas" ? "activo" : ""
-          }`}
-          onClick={() => setSeccionActual("reservas")}
-        >
-          Reservas
-        </button>
-
-
-        {/* PAGOS */}
-
-        <button
-          className={`menu-item ${
-            seccionActual === "pagos" ? "activo" : ""
-          }`}
-          onClick={() => setSeccionActual("pagos")}
-        >
-          Pagos
-        </button>
-
-      </nav>
-
-
-      {/* CERRAR SESIÓN */}
-
-      <button
-        className="cerrar-sesion"
-        onClick={cerrarSesion}
-      >
-        Cerrar sesión
-      </button>
-
-    </aside>
-  )
+        </aside>
+    )
 }
 
 export default Sidebar

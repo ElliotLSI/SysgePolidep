@@ -22,6 +22,14 @@ function Pagos() {
 
     const token = sessionStorage.getItem("token")
 
+    const usuarioActual = JSON.parse(
+        sessionStorage.getItem("usuario")
+    )
+
+    const roles = usuarioActual?.roles ?? []
+
+    const esAdministrador =
+        roles.includes("ADMINISTRADOR")
 
     const cargarDatos = async () => {
 
@@ -33,26 +41,34 @@ function Pagos() {
                 respuestaMembresias
             ] = await Promise.all([
 
-                fetch("http://localhost:8080/api/pagos", {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                fetch(
+                    "http://localhost:8080/api/pagos",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
                     }
-                }),
+                ),
 
-                fetch("http://localhost:8080/api/reservas", {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                fetch(
+                    "http://localhost:8080/api/reservas",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
                     }
-                }),
+                ),
 
-                fetch("http://localhost:8080/api/membresias", {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                fetch(
+                    "http://localhost:8080/api/membresias",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
                     }
-                })
+                )
 
             ])
-
 
             if (
                 !respuestaPagos.ok ||
@@ -64,7 +80,6 @@ function Pagos() {
                 )
             }
 
-
             const datosPagos =
                 await respuestaPagos.json()
 
@@ -73,7 +88,6 @@ function Pagos() {
 
             const datosMembresias =
                 await respuestaMembresias.json()
-
 
             setPagos(datosPagos)
             setReservas(datosReservas)
@@ -89,23 +103,18 @@ function Pagos() {
         }
     }
 
-
     useEffect(() => {
-
         cargarDatos()
-
     }, [])
-
 
     const manejarCambio = (e) => {
 
         const { name, value } = e.target
 
-        setNuevoPago({
-            ...nuevoPago,
+        setNuevoPago(prev => ({
+            ...prev,
             [name]: value
-        })
-
+        }))
 
         if (name === "idReserva") {
 
@@ -116,17 +125,16 @@ function Pagos() {
                         Number(value)
                 )
 
-
             if (reserva) {
 
                 setNuevoPago(prev => ({
                     ...prev,
                     idReserva: value,
-                    montoTotal: reserva.montoTotal
+                    montoTotal:
+                    reserva.montoTotal
                 }))
             }
         }
-
 
         if (name === "idMembresia") {
 
@@ -136,7 +144,6 @@ function Pagos() {
                         m.idMembresia ===
                         Number(value)
                 )
-
 
             if (membresia) {
 
@@ -149,7 +156,6 @@ function Pagos() {
             }
         }
     }
-
 
     const cambiarTipoPago = (tipo) => {
 
@@ -166,28 +172,23 @@ function Pagos() {
         setError("")
     }
 
-
     const crearPago = async (e) => {
 
         e.preventDefault()
 
         setError("")
 
-
         try {
 
             const datos = {
-
                 montoTotal:
                     Number(nuevoPago.montoTotal),
 
                 medioPago:
-                    nuevoPago.medioPago,
+                nuevoPago.medioPago,
 
-                estado:
-                    nuevoPago.estado
+                estado: "APROBADO"
             }
-
 
             if (tipoPago === "RESERVA") {
 
@@ -201,7 +202,6 @@ function Pagos() {
                 datos.idMembresia =
                     Number(nuevoPago.idMembresia)
             }
-
 
             const respuesta = await fetch(
                 "http://localhost:8080/api/pagos",
@@ -217,7 +217,6 @@ function Pagos() {
                 }
             )
 
-
             if (!respuesta.ok) {
 
                 const mensaje =
@@ -228,7 +227,6 @@ function Pagos() {
                     "No se pudo registrar el pago."
                 )
             }
-
 
             limpiarFormulario()
 
@@ -242,8 +240,11 @@ function Pagos() {
         }
     }
 
-
     const eliminarPago = async (id) => {
+
+        if (!esAdministrador) {
+            return
+        }
 
         if (
             !window.confirm(
@@ -252,7 +253,6 @@ function Pagos() {
         ) {
             return
         }
-
 
         try {
 
@@ -267,7 +267,6 @@ function Pagos() {
                 }
             )
 
-
             if (!respuesta.ok) {
 
                 const mensaje =
@@ -279,7 +278,6 @@ function Pagos() {
                 )
             }
 
-
             await cargarDatos()
 
         } catch (error) {
@@ -289,7 +287,6 @@ function Pagos() {
             setError(error.message)
         }
     }
-
 
     const limpiarFormulario = () => {
 
@@ -308,8 +305,9 @@ function Pagos() {
         setError("")
     }
 
-
-    const obtenerNombreUsuarioReserva = (reserva) => {
+    const obtenerNombreUsuarioReserva = (
+        reserva
+    ) => {
 
         if (!reserva?.usuario) {
             return "Sin usuario"
@@ -320,8 +318,9 @@ function Pagos() {
         }`
     }
 
-
-    const obtenerNombreSocioMembresia = (membresia) => {
+    const obtenerNombreSocioMembresia = (
+        membresia
+    ) => {
 
         if (!membresia?.socio?.usuario) {
             return "Sin socio"
@@ -331,7 +330,6 @@ function Pagos() {
             membresia.socio.usuario.apellido || ""
         }`
     }
-
 
     return (
 
@@ -351,7 +349,6 @@ function Pagos() {
 
                 </div>
 
-
                 <button
                     className="boton-principal"
                     onClick={() => {
@@ -369,7 +366,6 @@ function Pagos() {
 
             </div>
 
-
             {error && (
 
                 <div className="error-message">
@@ -377,7 +373,6 @@ function Pagos() {
                 </div>
 
             )}
-
 
             {mostrarFormulario && (
 
@@ -390,7 +385,6 @@ function Pagos() {
                         Registrar pago
                     </h3>
 
-
                     <div className="formulario-botones">
 
                         <button
@@ -401,12 +395,13 @@ function Pagos() {
                                     : "boton-secundario"
                             }
                             onClick={() =>
-                                cambiarTipoPago("RESERVA")
+                                cambiarTipoPago(
+                                    "RESERVA"
+                                )
                             }
                         >
                             Pago de reserva
                         </button>
-
 
                         <button
                             type="button"
@@ -416,14 +411,15 @@ function Pagos() {
                                     : "boton-secundario"
                             }
                             onClick={() =>
-                                cambiarTipoPago("MEMBRESIA")
+                                cambiarTipoPago(
+                                    "MEMBRESIA"
+                                )
                             }
                         >
                             Pago de membresía
                         </button>
 
                     </div>
-
 
                     <div className="formulario-grid">
 
@@ -440,7 +436,9 @@ function Pagos() {
                                     value={
                                         nuevoPago.idReserva
                                     }
-                                    onChange={manejarCambio}
+                                    onChange={
+                                        manejarCambio
+                                    }
                                     required
                                 >
 
@@ -454,38 +452,41 @@ function Pagos() {
                                                 reserva.estado !==
                                                 "CANCELADA"
                                         )
-                                        .map(reserva => (
+                                        .map(
+                                            reserva => (
 
-                                            <option
-                                                key={
-                                                    reserva.idReserva
-                                                }
-                                                value={
-                                                    reserva.idReserva
-                                                }
-                                            >
-                                                Reserva #
-                                                {reserva.idReserva}
-                                                {" - "}
-                                                {
-                                                    obtenerNombreUsuarioReserva(
-                                                        reserva
-                                                    )
-                                                }
-                                                {" - $"}
-                                                {
-                                                    reserva.montoTotal
-                                                }
-                                            </option>
+                                                <option
+                                                    key={
+                                                        reserva.idReserva
+                                                    }
+                                                    value={
+                                                        reserva.idReserva
+                                                    }
+                                                >
+                                                    Reserva #
+                                                    {
+                                                        reserva.idReserva
+                                                    }
+                                                    {" - "}
+                                                    {
+                                                        obtenerNombreUsuarioReserva(
+                                                            reserva
+                                                        )
+                                                    }
+                                                    {" - $"}
+                                                    {
+                                                        reserva.montoTotal
+                                                    }
+                                                </option>
 
-                                        ))}
+                                            )
+                                        )}
 
                                 </select>
 
                             </div>
 
                         )}
-
 
                         {tipoPago === "MEMBRESIA" && (
 
@@ -500,7 +501,9 @@ function Pagos() {
                                     value={
                                         nuevoPago.idMembresia
                                     }
-                                    onChange={manejarCambio}
+                                    onChange={
+                                        manejarCambio
+                                    }
                                     required
                                 >
 
@@ -546,7 +549,6 @@ function Pagos() {
 
                         )}
 
-
                         <div>
 
                             <label>
@@ -561,12 +563,11 @@ function Pagos() {
                                 value={
                                     nuevoPago.montoTotal
                                 }
-                                onChange={manejarCambio}
+                                readOnly
                                 required
                             />
 
                         </div>
-
 
                         <div>
 
@@ -579,7 +580,9 @@ function Pagos() {
                                 value={
                                     nuevoPago.medioPago
                                 }
-                                onChange={manejarCambio}
+                                onChange={
+                                    manejarCambio
+                                }
                                 required
                             >
 
@@ -603,51 +606,33 @@ function Pagos() {
 
                         </div>
 
-
                         <div>
 
                             <label>
                                 Estado
                             </label>
 
-                            <select
-                                name="estado"
-                                value={
-                                    nuevoPago.estado
-                                }
-                                onChange={manejarCambio}
-                                required
-                            >
-
-                                <option value="APROBADO">
-                                    Aprobado
-                                </option>
-
-                                <option value="PENDIENTE">
-                                    Pendiente
-                                </option>
-
-                                <option value="RECHAZADO">
-                                    Rechazado
-                                </option>
-
-                            </select>
+                            <input
+                                type="text"
+                                value="Aprobado"
+                                readOnly
+                            />
 
                         </div>
 
                     </div>
-
 
                     <div className="formulario-botones">
 
                         <button
                             type="button"
                             className="boton-secundario"
-                            onClick={limpiarFormulario}
+                            onClick={
+                                limpiarFormulario
+                            }
                         >
                             Cancelar
                         </button>
-
 
                         <button
                             type="submit"
@@ -662,57 +647,58 @@ function Pagos() {
 
             )}
 
-
             <div className="tabla-contenedor">
 
                 <table>
 
                     <thead>
 
-                        <tr>
+                    <tr>
 
-                            <th>ID</th>
-                            <th>Tipo</th>
-                            <th>Referencia</th>
-                            <th>Fecha</th>
-                            <th>Monto</th>
-                            <th>Medio</th>
-                            <th>Estado</th>
+                        <th>ID</th>
+                        <th>Tipo</th>
+                        <th>Referencia</th>
+                        <th>Fecha</th>
+                        <th>Monto</th>
+                        <th>Medio</th>
+                        <th>Estado</th>
+
+                        {esAdministrador && (
                             <th>Acciones</th>
+                        )}
 
-                        </tr>
+                    </tr>
 
                     </thead>
 
-
                     <tbody>
 
-                        {pagos.map(pago => (
+                    {pagos.map(
+                        pago => (
 
-                            <tr key={pago.idPago}>
+                            <tr
+                                key={
+                                    pago.idPago
+                                }
+                            >
 
                                 <td>
-                                    {pago.idPago}
+                                    {
+                                        pago.idPago
+                                    }
                                 </td>
 
-
                                 <td>
-
                                     {pago.reserva
                                         ? "Reserva"
                                         : "Membresía"}
-
                                 </td>
 
-
                                 <td>
-
                                     {pago.reserva
                                         ? `Reserva #${pago.reserva.idReserva}`
                                         : `Membresía #${pago.idMembresia}`}
-
                                 </td>
-
 
                                 <td>
                                     {pago.fecha
@@ -724,40 +710,48 @@ function Pagos() {
                                         : "-"}
                                 </td>
 
-
                                 <td>
-                                    ${pago.montoTotal}
+                                    $
+                                    {
+                                        pago.montoTotal
+                                    }
                                 </td>
 
-
                                 <td>
-                                    {pago.medioPago}
+                                    {
+                                        pago.medioPago
+                                    }
                                 </td>
 
-
                                 <td>
-                                    {pago.estado}
+                                    {
+                                        pago.estado
+                                    }
                                 </td>
 
+                                {esAdministrador && (
 
-                                <td>
+                                    <td>
 
-                                    <button
-                                        className="boton-eliminar"
-                                        onClick={() =>
-                                            eliminarPago(
-                                                pago.idPago
-                                            )
-                                        }
-                                    >
-                                        Eliminar
-                                    </button>
+                                        <button
+                                            className="boton-eliminar"
+                                            onClick={() =>
+                                                eliminarPago(
+                                                    pago.idPago
+                                                )
+                                            }
+                                        >
+                                            Eliminar
+                                        </button>
 
-                                </td>
+                                    </td>
+
+                                )}
 
                             </tr>
 
-                        ))}
+                        )
+                    )}
 
                     </tbody>
 

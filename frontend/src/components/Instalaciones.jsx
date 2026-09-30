@@ -19,6 +19,16 @@ function Instalaciones() {
         estado: "DISPONIBLE"
     })
 
+    const usuario = JSON.parse(
+        sessionStorage.getItem("usuario")
+    )
+
+    const roles = usuario?.roles ?? []
+
+    const esAdministrador =
+        roles.includes("ADMINISTRADOR")
+
+
     const obtenerInstalaciones = async () => {
 
         try {
@@ -61,9 +71,11 @@ function Instalaciones() {
         }
     }
 
+
     useEffect(() => {
         obtenerInstalaciones()
     }, [])
+
 
     const manejarCambio = (e) => {
 
@@ -74,6 +86,7 @@ function Instalaciones() {
             [name]: value
         })
     }
+
 
     const editarInstalacion = (instalacion) => {
 
@@ -91,6 +104,7 @@ function Instalaciones() {
         setMostrarFormulario(true)
     }
 
+
     const guardarInstalacion = async (e) => {
 
         e.preventDefault()
@@ -98,6 +112,8 @@ function Instalaciones() {
         try {
 
             const token = sessionStorage.getItem("token")
+
+            const estabaEditando = modoEdicion
 
             let respuesta
 
@@ -135,7 +151,8 @@ function Instalaciones() {
                 const mensaje = await respuesta.text()
 
                 throw new Error(
-                    mensaje || "No se pudo guardar la instalación"
+                    mensaje ||
+                    "No se pudo guardar la instalación"
                 )
             }
 
@@ -160,7 +177,7 @@ function Instalaciones() {
 
             await obtenerInstalaciones()
 
-            if (modoEdicion) {
+            if (estabaEditando) {
 
                 alert(
                     "Instalación actualizada correctamente"
@@ -185,6 +202,7 @@ function Instalaciones() {
         }
     }
 
+
     const nuevaInstalacionFormulario = () => {
 
         setModoEdicion(false)
@@ -201,6 +219,7 @@ function Instalaciones() {
         setMostrarFormulario(true)
     }
 
+
     const cancelarFormulario = () => {
 
         setMostrarFormulario(false)
@@ -215,6 +234,7 @@ function Instalaciones() {
             estado: "DISPONIBLE"
         })
     }
+
 
     const eliminarInstalacion = async (id) => {
 
@@ -245,7 +265,8 @@ function Instalaciones() {
                 const mensaje = await respuesta.text()
 
                 throw new Error(
-                    mensaje || "No se pudo eliminar la instalación"
+                    mensaje ||
+                    "No se pudo eliminar la instalación"
                 )
             }
 
@@ -267,9 +288,11 @@ function Instalaciones() {
         }
     }
 
+
     if (cargando) {
         return <p>Cargando instalaciones...</p>
     }
+
 
     if (error) {
         return (
@@ -279,6 +302,7 @@ function Instalaciones() {
         )
     }
 
+
     return (
         <section className="usuarios">
 
@@ -286,7 +310,9 @@ function Instalaciones() {
 
                 <div>
 
-                    <h2>Instalaciones</h2>
+                    <h2>
+                        Instalaciones
+                    </h2>
 
                     <p>
                         Instalaciones deportivas registradas.
@@ -294,18 +320,29 @@ function Instalaciones() {
 
                 </div>
 
-                <button
-                    className="boton-principal"
-                    onClick={nuevaInstalacionFormulario}
-                >
-                    Nueva instalación
-                </button>
+
+                {esAdministrador && (
+
+                    <button
+                        className="boton-principal"
+                        onClick={
+                            nuevaInstalacionFormulario
+                        }
+                    >
+                        Nueva instalación
+                    </button>
+
+                )}
 
             </div>
 
-            {mostrarFormulario && (
 
-                <div className="formulario-usuario">
+            {mostrarFormulario && esAdministrador && (
+
+                <form
+                    className="formulario-usuario"
+                    onSubmit={guardarInstalacion}
+                >
 
                     <h3>
                         {modoEdicion
@@ -313,6 +350,7 @@ function Instalaciones() {
                             : "Nueva instalación"
                         }
                     </h3>
+
 
                     <div className="formulario-grid">
 
@@ -325,12 +363,16 @@ function Instalaciones() {
                             <input
                                 type="text"
                                 name="nombre"
-                                value={nuevaInstalacion.nombre}
+                                value={
+                                    nuevaInstalacion.nombre
+                                }
                                 onChange={manejarCambio}
                                 placeholder="Ej: Cancha de fútbol"
+                                required
                             />
 
                         </div>
+
 
                         <div className="form-group">
 
@@ -341,12 +383,16 @@ function Instalaciones() {
                             <input
                                 type="text"
                                 name="tipo"
-                                value={nuevaInstalacion.tipo}
+                                value={
+                                    nuevaInstalacion.tipo
+                                }
                                 onChange={manejarCambio}
                                 placeholder="Ej: Cancha"
+                                required
                             />
 
                         </div>
+
 
                         <div className="form-group">
 
@@ -357,13 +403,16 @@ function Instalaciones() {
                             <input
                                 type="number"
                                 name="capacidad"
-                                value={nuevaInstalacion.capacidad}
+                                value={
+                                    nuevaInstalacion.capacidad
+                                }
                                 onChange={manejarCambio}
                                 min="1"
                                 placeholder="Ej: 20"
                             />
 
                         </div>
+
 
                         <div className="form-group">
 
@@ -374,14 +423,18 @@ function Instalaciones() {
                             <input
                                 type="number"
                                 name="tarifaBase"
-                                value={nuevaInstalacion.tarifaBase}
+                                value={
+                                    nuevaInstalacion.tarifaBase
+                                }
                                 onChange={manejarCambio}
                                 min="0"
                                 step="0.01"
                                 placeholder="Ej: 5000"
+                                required
                             />
 
                         </div>
+
 
                         <div className="form-group">
 
@@ -391,7 +444,9 @@ function Instalaciones() {
 
                             <select
                                 name="estado"
-                                value={nuevaInstalacion.estado}
+                                value={
+                                    nuevaInstalacion.estado
+                                }
                                 onChange={manejarCambio}
                             >
 
@@ -413,6 +468,7 @@ function Instalaciones() {
 
                     </div>
 
+
                     <div className="formulario-botones">
 
                         <button
@@ -423,10 +479,10 @@ function Instalaciones() {
                             Cancelar
                         </button>
 
+
                         <button
-                            type="button"
+                            type="submit"
                             className="boton-principal"
-                            onClick={guardarInstalacion}
                         >
                             {modoEdicion
                                 ? "Guardar cambios"
@@ -436,9 +492,10 @@ function Instalaciones() {
 
                     </div>
 
-                </div>
+                </form>
 
             )}
+
 
             <div className="tabla-contenedor">
 
@@ -446,79 +503,128 @@ function Instalaciones() {
 
                     <thead>
 
-                        <tr>
+                    <tr>
 
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Tipo</th>
-                            <th>Capacidad</th>
-                            <th>Tarifa base</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
+                        <th>
+                            ID
+                        </th>
 
-                        </tr>
+                        <th>
+                            Nombre
+                        </th>
+
+                        <th>
+                            Tipo
+                        </th>
+
+                        <th>
+                            Capacidad
+                        </th>
+
+                        <th>
+                            Tarifa base
+                        </th>
+
+                        <th>
+                            Estado
+                        </th>
+
+                        {esAdministrador && (
+                            <th>
+                                Acciones
+                            </th>
+                        )}
+
+                    </tr>
 
                     </thead>
 
+
                     <tbody>
 
-                        {instalaciones.map((instalacion) => (
+                    {instalaciones.map(
+                        (instalacion) => (
 
                             <tr
-                                key={instalacion.idInstalacion}
+                                key={
+                                    instalacion.idInstalacion
+                                }
                             >
 
                                 <td>
-                                    {instalacion.idInstalacion}
+                                    {
+                                        instalacion.idInstalacion
+                                    }
                                 </td>
 
                                 <td>
-                                    {instalacion.nombre}
+                                    {
+                                        instalacion.nombre
+                                    }
                                 </td>
 
                                 <td>
-                                    {instalacion.tipo}
+                                    {
+                                        instalacion.tipo
+                                    }
                                 </td>
 
                                 <td>
-                                    {instalacion.capacidad || "-"}
+                                    {
+                                        instalacion.capacidad ||
+                                        "-"
+                                    }
                                 </td>
 
                                 <td>
-                                    ${instalacion.tarifaBase}
+                                    $
+                                    {
+                                        instalacion.tarifaBase
+                                    }
                                 </td>
 
                                 <td>
-                                    {instalacion.estado}
+                                    {
+                                        instalacion.estado
+                                    }
                                 </td>
 
-                                <td>
 
-                                    <button
-                                        className="boton-editar"
-                                        onClick={() =>
-                                            editarInstalacion(instalacion)
-                                        }
-                                    >
-                                        Editar
-                                    </button>
+                                {esAdministrador && (
 
-                                    <button
-                                        className="boton-eliminar"
-                                        onClick={() =>
-                                            eliminarInstalacion(
-                                                instalacion.idInstalacion
-                                            )
-                                        }
-                                    >
-                                        Eliminar
-                                    </button>
+                                    <td>
 
-                                </td>
+                                        <button
+                                            className="boton-editar"
+                                            onClick={() =>
+                                                editarInstalacion(
+                                                    instalacion
+                                                )
+                                            }
+                                        >
+                                            Editar
+                                        </button>
+
+
+                                        <button
+                                            className="boton-eliminar"
+                                            onClick={() =>
+                                                eliminarInstalacion(
+                                                    instalacion.idInstalacion
+                                                )
+                                            }
+                                        >
+                                            Eliminar
+                                        </button>
+
+                                    </td>
+
+                                )}
 
                             </tr>
 
-                        ))}
+                        )
+                    )}
 
                     </tbody>
 
@@ -531,4 +637,3 @@ function Instalaciones() {
 }
 
 export default Instalaciones
-
