@@ -28,53 +28,100 @@ function Membresias() {
 
     const [error, setError] = useState("")
 
+    const usuarioActual = JSON.parse(
+        sessionStorage.getItem("usuario")
+    )
+
+    const roles = usuarioActual?.roles ?? []
+
+    const esAdministrador = roles.includes("ADMINISTRADOR")
+    const esEmpleado = roles.includes("EMPLEADO")
+    const esSocio = roles.includes("SOCIO")
+    const esUsuario = roles.includes("USUARIO")
+
+    const puedeGestionarMembresias =
+        esAdministrador || esEmpleado
+
+    const puedeCrearSocio =
+        esAdministrador || esEmpleado || esUsuario
+
+    const puedeRenovar =
+        esAdministrador || esEmpleado || esSocio
+
     const token = sessionStorage.getItem("token")
+
 
     const cargarDatos = async () => {
 
         try {
 
-            const [respuestaMembresias, respuestaUsuarios,
-                respuestaSocios, respuestaCategorias] = await Promise.all([
+            const [
+                respuestaMembresias,
+                respuestaUsuarios,
+                respuestaSocios,
+                respuestaCategorias
+            ] = await Promise.all([
 
-                fetch("http://localhost:8080/api/membresias", {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                fetch(
+                    "http://localhost:8080/api/membresias",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
                     }
-                }),
+                ),
 
-                fetch("http://localhost:8080/api/usuarios", {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                fetch(
+                    "http://localhost:8080/api/usuarios",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
                     }
-                }),
+                ),
 
-                fetch("http://localhost:8080/api/socios", {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                fetch(
+                    "http://localhost:8080/api/socios",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
                     }
-                }),
+                ),
 
-                fetch("http://localhost:8080/api/categorias", {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                fetch(
+                    "http://localhost:8080/api/categorias",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
                     }
-                })
+                )
 
             ])
 
-            if (!respuestaMembresias.ok ||
+            if (
+                !respuestaMembresias.ok ||
                 !respuestaUsuarios.ok ||
                 !respuestaSocios.ok ||
-                !respuestaCategorias.ok) {
-
-                throw new Error("No se pudieron obtener los datos.")
+                !respuestaCategorias.ok
+            ) {
+                throw new Error(
+                    "No se pudieron obtener los datos."
+                )
             }
 
-            const datosMembresias = await respuestaMembresias.json()
-            const datosUsuarios = await respuestaUsuarios.json()
-            const datosSocios = await respuestaSocios.json()
-            const datosCategorias = await respuestaCategorias.json()
+            const datosMembresias =
+                await respuestaMembresias.json()
+
+            const datosUsuarios =
+                await respuestaUsuarios.json()
+
+            const datosSocios =
+                await respuestaSocios.json()
+
+            const datosCategorias =
+                await respuestaCategorias.json()
 
             setMembresias(datosMembresias)
             setUsuarios(datosUsuarios)
@@ -84,15 +131,18 @@ function Membresias() {
         } catch (error) {
 
             console.error(error)
-            setError("No se pudieron obtener los datos.")
 
+            setError(
+                "No se pudieron obtener los datos."
+            )
         }
-
     }
+
 
     useEffect(() => {
         cargarDatos()
     }, [])
+
 
     const manejarCambioMembresia = (e) => {
 
@@ -100,26 +150,51 @@ function Membresias() {
             ...nuevaMembresia,
             [e.target.name]: e.target.value
         })
-
     }
+
 
     const manejarCambioCategoria = (e) => {
 
-        const { name, value, type, checked } = e.target
+        const {
+            name,
+            value,
+            type,
+            checked
+        } = e.target
 
         setNuevaCategoria({
             ...nuevaCategoria,
-            [name]: type === "checkbox" ? checked : value
+            [name]:
+                type === "checkbox"
+                    ? checked
+                    : value
         })
-
     }
+
 
     const crearMembresia = async (e) => {
 
         e.preventDefault()
         setError("")
 
+        if (!puedeCrearSocio) {
+            return
+        }
+
         try {
+
+            let idUsuario = Number(
+                nuevaMembresia.idUsuario
+            )
+
+            if (
+                esUsuario &&
+                !esAdministrador &&
+                !esEmpleado
+            ) {
+                idUsuario =
+                    usuarioActual.idUsuario
+            }
 
             const respuesta = await fetch(
                 "http://localhost:8080/api/socios/alta",
@@ -130,18 +205,23 @@ function Membresias() {
                         Authorization: `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        idUsuario: Number(nuevaMembresia.idUsuario),
-                        idCategoria: Number(nuevaMembresia.idCategoria)
+                        idUsuario: idUsuario,
+                        idCategoria:
+                            Number(
+                                nuevaMembresia.idCategoria
+                            )
                     })
                 }
             )
 
             if (!respuesta.ok) {
 
-                const mensaje = await respuesta.text()
+                const mensaje =
+                    await respuesta.text()
 
                 throw new Error(
-                    mensaje || "No se pudo crear el socio."
+                    mensaje ||
+                    "No se pudo crear el socio."
                 )
             }
 
@@ -158,14 +238,21 @@ function Membresias() {
 
             console.error(error)
             setError(error.message)
-
         }
-
     }
+
 
     const renovarMembresia = async (id) => {
 
-        if (!window.confirm("¿Querés renovar esta membresía?")) {
+        if (!puedeRenovar) {
+            return
+        }
+
+        if (
+            !window.confirm(
+                "¿Querés renovar esta membresía?"
+            )
+        ) {
             return
         }
 
@@ -183,10 +270,12 @@ function Membresias() {
 
             if (!respuesta.ok) {
 
-                const mensaje = await respuesta.text()
+                const mensaje =
+                    await respuesta.text()
 
                 throw new Error(
-                    mensaje || "No se pudo renovar la membresía."
+                    mensaje ||
+                    "No se pudo renovar la membresía."
                 )
             }
 
@@ -196,14 +285,21 @@ function Membresias() {
 
             console.error(error)
             setError(error.message)
-
         }
-
     }
+
 
     const eliminarMembresia = async (id) => {
 
-        if (!window.confirm("¿Querés eliminar esta membresía?")) {
+        if (!esAdministrador) {
+            return
+        }
+
+        if (
+            !window.confirm(
+                "¿Querés eliminar esta membresía?"
+            )
+        ) {
             return
         }
 
@@ -221,10 +317,12 @@ function Membresias() {
 
             if (!respuesta.ok) {
 
-                const mensaje = await respuesta.text()
+                const mensaje =
+                    await respuesta.text()
 
                 throw new Error(
-                    mensaje || "No se pudo eliminar la membresía."
+                    mensaje ||
+                    "No se pudo eliminar la membresía."
                 )
             }
 
@@ -234,25 +332,46 @@ function Membresias() {
 
             console.error(error)
             setError(error.message)
-
         }
-
     }
+
 
     const guardarCategoria = async (e) => {
 
         e.preventDefault()
+
+        if (!esAdministrador) {
+            return
+        }
+
         setError("")
 
         try {
 
             const datos = {
-                nombre: nuevaCategoria.nombre,
-                costo: Number(nuevaCategoria.costo),
-                porcDescuento: Number(nuevaCategoria.porcDescuento),
-                descripBeneficios: nuevaCategoria.descripBeneficios,
-                duracionMeses: Number(nuevaCategoria.duracionMeses),
-                activo: nuevaCategoria.activo
+                nombre:
+                nuevaCategoria.nombre,
+
+                costo:
+                    Number(
+                        nuevaCategoria.costo
+                    ),
+
+                porcDescuento:
+                    Number(
+                        nuevaCategoria.porcDescuento
+                    ),
+
+                descripBeneficios:
+                nuevaCategoria.descripBeneficios,
+
+                duracionMeses:
+                    Number(
+                        nuevaCategoria.duracionMeses
+                    ),
+
+                activo:
+                nuevaCategoria.activo
             }
 
             let respuesta
@@ -284,50 +403,76 @@ function Membresias() {
                         body: JSON.stringify(datos)
                     }
                 )
-
             }
 
             if (!respuesta.ok) {
 
-                const mensaje = await respuesta.text()
+                const mensaje =
+                    await respuesta.text()
 
                 throw new Error(
-                    mensaje || "No se pudo guardar la categoría."
+                    mensaje ||
+                    "No se pudo guardar la categoría."
                 )
             }
 
             limpiarFormularioCategoria()
+
             await cargarDatos()
 
         } catch (error) {
 
             console.error(error)
             setError(error.message)
-
         }
-
     }
+
 
     const editarCategoria = (categoria) => {
 
-        setCategoriaEditando(categoria.idCategoria)
+        if (!esAdministrador) {
+            return
+        }
+
+        setCategoriaEditando(
+            categoria.idCategoria
+        )
 
         setNuevaCategoria({
-            nombre: categoria.nombre,
-            costo: categoria.costo,
-            porcDescuento: categoria.porcDescuento,
-            descripBeneficios: categoria.descripBeneficios || "",
-            duracionMeses: categoria.duracionMeses,
-            activo: categoria.activo
+            nombre:
+            categoria.nombre,
+
+            costo:
+            categoria.costo,
+
+            porcDescuento:
+            categoria.porcDescuento,
+
+            descripBeneficios:
+                categoria.descripBeneficios || "",
+
+            duracionMeses:
+            categoria.duracionMeses,
+
+            activo:
+            categoria.activo
         })
 
         setMostrarFormularioCategoria(true)
-
     }
+
 
     const eliminarCategoria = async (id) => {
 
-        if (!window.confirm("¿Querés eliminar esta categoría?")) {
+        if (!esAdministrador) {
+            return
+        }
+
+        if (
+            !window.confirm(
+                "¿Querés eliminar esta categoría?"
+            )
+        ) {
             return
         }
 
@@ -345,10 +490,12 @@ function Membresias() {
 
             if (!respuesta.ok) {
 
-                const mensaje = await respuesta.text()
+                const mensaje =
+                    await respuesta.text()
 
                 throw new Error(
-                    mensaje || "No se pudo eliminar la categoría."
+                    mensaje ||
+                    "No se pudo eliminar la categoría."
                 )
             }
 
@@ -358,10 +505,9 @@ function Membresias() {
 
             console.error(error)
             setError(error.message)
-
         }
-
     }
+
 
     const limpiarFormularioCategoria = () => {
 
@@ -376,16 +522,28 @@ function Membresias() {
 
         setCategoriaEditando(null)
         setMostrarFormularioCategoria(false)
-
     }
 
-    const usuariosDisponibles = usuarios.filter(usuario => {
 
-        return !socios.some(
-            socio => socio.idUsuario === usuario.idUsuario
-        )
+    const usuariosDisponibles = usuarios.filter(
+        usuario =>
+            !socios.some(
+                socio =>
+                    socio.idUsuario ===
+                    usuario.idUsuario
+            )
+    )
 
-    })
+
+    const usuariosParaAlta =
+        esAdministrador || esEmpleado
+            ? usuariosDisponibles
+            : usuariosDisponibles.filter(
+                usuario =>
+                    usuario.idUsuario ===
+                    usuarioActual?.idUsuario
+            )
+
 
     return (
         <div>
@@ -396,6 +554,7 @@ function Membresias() {
                 </div>
             )}
 
+
             {/* ========================= */}
             {/* MEMBRESÍAS */}
             {/* ========================= */}
@@ -405,126 +564,181 @@ function Membresias() {
                 <div className="seccion-titulo">
 
                     <div>
+
                         <h2>Membresías</h2>
 
                         <p>
                             Gestión de socios y membresías.
                         </p>
+
                     </div>
 
-                    <button
-                        className="boton-principal"
-                        onClick={() => {
-                            setError("")
-                            setMostrarFormularioMembresia(
-                                !mostrarFormularioMembresia
-                            )
-                        }}
-                    >
-                        Nueva membresía
-                    </button>
+
+                    {puedeGestionarMembresias && (
+
+                        <button
+                            className="boton-principal"
+                            onClick={() => {
+
+                                setError("")
+
+                                setNuevaMembresia({
+                                    idUsuario: "",
+                                    idCategoria: ""
+                                })
+
+                                setMostrarFormularioMembresia(
+                                    !mostrarFormularioMembresia
+                                )
+                            }}
+                        >
+                            Nueva membresía
+                        </button>
+
+                    )}
 
                 </div>
 
-                {mostrarFormularioMembresia && (
 
-                    <form
-                        className="formulario-usuario"
-                        onSubmit={crearMembresia}
-                    >
+                {mostrarFormularioMembresia &&
+                    puedeGestionarMembresias && (
 
-                        <h3>
-                            Alta de socio
-                        </h3>
+                        <form
+                            className="formulario-usuario"
+                            onSubmit={crearMembresia}
+                        >
 
-                        <div className="formulario-grid">
+                            <h3>
+                                Alta de socio
+                            </h3>
 
-                            <div>
-                                <label>Usuario</label>
 
-                                <select
-                                    name="idUsuario"
-                                    value={nuevaMembresia.idUsuario}
-                                    onChange={manejarCambioMembresia}
-                                    required
-                                >
+                            <div className="formulario-grid">
 
-                                    <option value="">
-                                        Seleccionar usuario
-                                    </option>
+                                <div>
 
-                                    {usuariosDisponibles.map(usuario => (
+                                    <label>
+                                        Usuario
+                                    </label>
 
-                                        <option
-                                            key={usuario.idUsuario}
-                                            value={usuario.idUsuario}
-                                        >
-                                            {usuario.nombre} {usuario.apellido}
+                                    <select
+                                        name="idUsuario"
+                                        value={
+                                            nuevaMembresia.idUsuario
+                                        }
+                                        onChange={
+                                            manejarCambioMembresia
+                                        }
+                                        required
+                                    >
+
+                                        <option value="">
+                                            Seleccionar usuario
                                         </option>
 
-                                    ))}
+                                        {usuariosParaAlta.map(
+                                            usuario => (
 
-                                </select>
+                                                <option
+                                                    key={
+                                                        usuario.idUsuario
+                                                    }
+                                                    value={
+                                                        usuario.idUsuario
+                                                    }
+                                                >
+                                                    {usuario.nombre}{" "}
+                                                    {usuario.apellido}
+                                                </option>
+
+                                            )
+                                        )}
+
+                                    </select>
+
+                                </div>
+
+
+                                <div>
+
+                                    <label>
+                                        Categoría
+                                    </label>
+
+                                    <select
+                                        name="idCategoria"
+                                        value={
+                                            nuevaMembresia.idCategoria
+                                        }
+                                        onChange={
+                                            manejarCambioMembresia
+                                        }
+                                        required
+                                    >
+
+                                        <option value="">
+                                            Seleccionar categoría
+                                        </option>
+
+                                        {categorias
+                                            .filter(
+                                                categoria =>
+                                                    categoria.activo
+                                            )
+                                            .map(
+                                                categoria => (
+
+                                                    <option
+                                                        key={
+                                                            categoria.idCategoria
+                                                        }
+                                                        value={
+                                                            categoria.idCategoria
+                                                        }
+                                                    >
+                                                        {
+                                                            categoria.nombre
+                                                        }
+                                                    </option>
+
+                                                )
+                                            )}
+
+                                    </select>
+
+                                </div>
 
                             </div>
 
-                            <div>
-                                <label>Categoría</label>
 
-                                <select
-                                    name="idCategoria"
-                                    value={nuevaMembresia.idCategoria}
-                                    onChange={manejarCambioMembresia}
-                                    required
+                            <div className="formulario-botones">
+
+                                <button
+                                    type="button"
+                                    className="boton-secundario"
+                                    onClick={() =>
+                                        setMostrarFormularioMembresia(
+                                            false
+                                        )
+                                    }
                                 >
+                                    Cancelar
+                                </button>
 
-                                    <option value="">
-                                        Seleccionar categoría
-                                    </option>
 
-                                    {categorias
-                                        .filter(categoria => categoria.activo)
-                                        .map(categoria => (
-
-                                            <option
-                                                key={categoria.idCategoria}
-                                                value={categoria.idCategoria}
-                                            >
-                                                {categoria.nombre}
-                                            </option>
-
-                                        ))}
-
-                                </select>
+                                <button
+                                    type="submit"
+                                    className="boton-principal"
+                                >
+                                    Crear socio
+                                </button>
 
                             </div>
 
-                        </div>
+                        </form>
 
-                        <div className="formulario-botones">
+                    )}
 
-                            <button
-                                type="button"
-                                className="boton-secundario"
-                                onClick={() => {
-                                    setMostrarFormularioMembresia(false)
-                                }}
-                            >
-                                Cancelar
-                            </button>
-
-                            <button
-                                type="submit"
-                                className="boton-principal"
-                            >
-                                Crear socio
-                            </button>
-
-                        </div>
-
-                    </form>
-
-                )}
 
                 <div className="tabla-contenedor">
 
@@ -532,83 +746,129 @@ function Membresias() {
 
                         <thead>
 
-                            <tr>
-                                <th>ID</th>
-                                <th>Socio</th>
-                                <th>N.º Socio</th>
-                                <th>Categoría</th>
-                                <th>Inicio</th>
-                                <th>Vencimiento</th>
-                                <th>Estado</th>
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Socio</th>
+                            <th>N.º Socio</th>
+                            <th>Categoría</th>
+                            <th>Inicio</th>
+                            <th>Vencimiento</th>
+                            <th>Estado</th>
+
+                            {(puedeRenovar ||
+                                esAdministrador) && (
                                 <th>Acciones</th>
-                            </tr>
+                            )}
+
+                        </tr>
 
                         </thead>
 
+
                         <tbody>
 
-                            {membresias.map(membresia => (
+                        {membresias.map(
+                            membresia => (
 
-                                <tr key={membresia.idMembresia}>
+                                <tr
+                                    key={
+                                        membresia.idMembresia
+                                    }
+                                >
 
                                     <td>
-                                        {membresia.idMembresia}
+                                        {
+                                            membresia.idMembresia
+                                        }
                                     </td>
 
                                     <td>
-                                        {membresia.socio?.usuario?.nombre}{" "}
-                                        {membresia.socio?.usuario?.apellido}
+                                        {
+                                            membresia.socio
+                                                ?.usuario
+                                                ?.nombre
+                                        }{" "}
+                                        {
+                                            membresia.socio
+                                                ?.usuario
+                                                ?.apellido
+                                        }
                                     </td>
 
                                     <td>
-                                        {membresia.socio?.nroSocio}
+                                        {
+                                            membresia.socio
+                                                ?.nroSocio
+                                        }
                                     </td>
 
                                     <td>
-                                        {membresia.categoria?.nombre}
+                                        {
+                                            membresia.categoria
+                                                ?.nombre
+                                        }
                                     </td>
 
                                     <td>
-                                        {membresia.fechaInicio}
+                                        {
+                                            membresia.fechaInicio
+                                        }
                                     </td>
 
                                     <td>
-                                        {membresia.fechaVenc}
+                                        {
+                                            membresia.fechaVenc
+                                        }
                                     </td>
 
                                     <td>
-                                        {membresia.estado}
+                                        {
+                                            membresia.estado
+                                        }
                                     </td>
 
-                                    <td>
 
-                                        <button
-                                            className="boton-editar"
-                                            onClick={() =>
-                                                renovarMembresia(
-                                                    membresia.idMembresia
-                                                )
-                                            }
-                                        >
-                                            Renovar
-                                        </button>
+                                    {(puedeRenovar ||
+                                        esAdministrador) && (
 
-                                        <button
-                                            className="boton-eliminar"
-                                            onClick={() =>
-                                                eliminarMembresia(
-                                                    membresia.idMembresia
-                                                )
-                                            }
-                                        >
-                                            Eliminar
-                                        </button>
+                                        <td>
 
-                                    </td>
+                                            {puedeRenovar && (
+                                                <button
+                                                    className="boton-editar"
+                                                    onClick={() =>
+                                                        renovarMembresia(
+                                                            membresia.idMembresia
+                                                        )
+                                                    }
+                                                >
+                                                    Renovar
+                                                </button>
+                                            )}
+
+
+                                            {esAdministrador && (
+                                                <button
+                                                    className="boton-eliminar"
+                                                    onClick={() =>
+                                                        eliminarMembresia(
+                                                            membresia.idMembresia
+                                                        )
+                                                    }
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            )}
+
+                                        </td>
+
+                                    )}
 
                                 </tr>
 
-                            ))}
+                            )
+                        )}
 
                         </tbody>
 
@@ -625,166 +885,245 @@ function Membresias() {
 
             <section
                 className="usuarios"
-                style={{ marginTop: "25px" }}
+                style={{
+                    marginTop: "25px"
+                }}
             >
 
                 <div className="seccion-titulo">
 
                     <div>
-                        <h2>Categorías</h2>
+
+                        <h2>
+                            Categorías
+                        </h2>
 
                         <p>
-                            Planes y tipos de membresía disponibles.
+                            Planes y tipos de membresía
+                            disponibles.
                         </p>
+
                     </div>
 
-                    <button
-                        className="boton-principal"
-                        onClick={() => {
 
-                            setError("")
-                            setCategoriaEditando(null)
+                    {esAdministrador && (
 
-                            setNuevaCategoria({
-                                nombre: "",
-                                costo: "",
-                                porcDescuento: "",
-                                descripBeneficios: "",
-                                duracionMeses: "",
-                                activo: true
-                            })
+                        <button
+                            className="boton-principal"
+                            onClick={() => {
 
-                            setMostrarFormularioCategoria(
-                                !mostrarFormularioCategoria
-                            )
+                                setError("")
 
-                        }}
-                    >
-                        Nueva categoría
-                    </button>
+                                setCategoriaEditando(null)
+
+                                setNuevaCategoria({
+                                    nombre: "",
+                                    costo: "",
+                                    porcDescuento: "",
+                                    descripBeneficios: "",
+                                    duracionMeses: "",
+                                    activo: true
+                                })
+
+                                setMostrarFormularioCategoria(
+                                    !mostrarFormularioCategoria
+                                )
+                            }}
+                        >
+                            Nueva categoría
+                        </button>
+
+                    )}
 
                 </div>
 
 
-                {mostrarFormularioCategoria && (
+                {mostrarFormularioCategoria &&
+                    esAdministrador && (
 
-                    <form
-                        className="formulario-usuario"
-                        onSubmit={guardarCategoria}
-                    >
+                        <form
+                            className="formulario-usuario"
+                            onSubmit={
+                                guardarCategoria
+                            }
+                        >
 
-                        <h3>
-                            {categoriaEditando
-                                ? "Editar categoría"
-                                : "Nueva categoría"}
-                        </h3>
+                            <h3>
+                                {categoriaEditando
+                                    ? "Editar categoría"
+                                    : "Nueva categoría"}
+                            </h3>
 
-                        <div className="formulario-grid">
 
-                            <div>
-                                <label>Nombre</label>
+                            <div className="formulario-grid">
 
-                                <input
-                                    type="text"
-                                    name="nombre"
-                                    value={nuevaCategoria.nombre}
-                                    onChange={manejarCambioCategoria}
-                                    required
-                                />
-                            </div>
+                                <div>
 
-                            <div>
-                                <label>Costo</label>
+                                    <label>
+                                        Nombre
+                                    </label>
 
-                                <input
-                                    type="number"
-                                    name="costo"
-                                    min="0"
-                                    step="0.01"
-                                    value={nuevaCategoria.costo}
-                                    onChange={manejarCambioCategoria}
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label>Descuento (%)</label>
-
-                                <input
-                                    type="number"
-                                    name="porcDescuento"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
-                                    value={nuevaCategoria.porcDescuento}
-                                    onChange={manejarCambioCategoria}
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label>Duración (meses)</label>
-
-                                <input
-                                    type="number"
-                                    name="duracionMeses"
-                                    min="1"
-                                    value={nuevaCategoria.duracionMeses}
-                                    onChange={manejarCambioCategoria}
-                                    required
-                                />
-                            </div>
-
-                            <div style={{ gridColumn: "1 / -1" }}>
-                                <label>Beneficios</label>
-
-                                <textarea
-                                    name="descripBeneficios"
-                                    value={nuevaCategoria.descripBeneficios}
-                                    onChange={manejarCambioCategoria}
-                                    rows="3"
-                                />
-                            </div>
-
-                            <div>
-                                <label>
                                     <input
-                                        type="checkbox"
-                                        name="activo"
-                                        checked={nuevaCategoria.activo}
-                                        onChange={manejarCambioCategoria}
+                                        type="text"
+                                        name="nombre"
+                                        value={
+                                            nuevaCategoria.nombre
+                                        }
+                                        onChange={
+                                            manejarCambioCategoria
+                                        }
+                                        required
                                     />
 
-                                    {" "}Categoría activa
-                                </label>
+                                </div>
+
+
+                                <div>
+
+                                    <label>
+                                        Costo
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        name="costo"
+                                        min="0"
+                                        step="0.01"
+                                        value={
+                                            nuevaCategoria.costo
+                                        }
+                                        onChange={
+                                            manejarCambioCategoria
+                                        }
+                                        required
+                                    />
+
+                                </div>
+
+
+                                <div>
+
+                                    <label>
+                                        Descuento (%)
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        name="porcDescuento"
+                                        min="0"
+                                        max="100"
+                                        step="0.01"
+                                        value={
+                                            nuevaCategoria.porcDescuento
+                                        }
+                                        onChange={
+                                            manejarCambioCategoria
+                                        }
+                                        required
+                                    />
+
+                                </div>
+
+
+                                <div>
+
+                                    <label>
+                                        Duración (meses)
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        name="duracionMeses"
+                                        min="1"
+                                        value={
+                                            nuevaCategoria.duracionMeses
+                                        }
+                                        onChange={
+                                            manejarCambioCategoria
+                                        }
+                                        required
+                                    />
+
+                                </div>
+
+
+                                <div
+                                    style={{
+                                        gridColumn:
+                                            "1 / -1"
+                                    }}
+                                >
+
+                                    <label>
+                                        Beneficios
+                                    </label>
+
+                                    <textarea
+                                        name="descripBeneficios"
+                                        value={
+                                            nuevaCategoria
+                                                .descripBeneficios
+                                        }
+                                        onChange={
+                                            manejarCambioCategoria
+                                        }
+                                        rows="3"
+                                    />
+
+                                </div>
+
+
+                                <div>
+
+                                    <label>
+
+                                        <input
+                                            type="checkbox"
+                                            name="activo"
+                                            checked={
+                                                nuevaCategoria.activo
+                                            }
+                                            onChange={
+                                                manejarCambioCategoria
+                                            }
+                                        />
+
+                                        {" "}Categoría activa
+
+                                    </label>
+
+                                </div>
+
                             </div>
 
-                        </div>
 
-                        <div className="formulario-botones">
+                            <div className="formulario-botones">
 
-                            <button
-                                type="button"
-                                className="boton-secundario"
-                                onClick={limpiarFormularioCategoria}
-                            >
-                                Cancelar
-                            </button>
+                                <button
+                                    type="button"
+                                    className="boton-secundario"
+                                    onClick={
+                                        limpiarFormularioCategoria
+                                    }
+                                >
+                                    Cancelar
+                                </button>
 
-                            <button
-                                type="submit"
-                                className="boton-principal"
-                            >
-                                {categoriaEditando
-                                    ? "Guardar cambios"
-                                    : "Crear categoría"}
-                            </button>
 
-                        </div>
+                                <button
+                                    type="submit"
+                                    className="boton-principal"
+                                >
+                                    {categoriaEditando
+                                        ? "Guardar cambios"
+                                        : "Crear categoría"}
+                                </button>
 
-                    </form>
+                            </div>
 
-                )}
+                        </form>
+
+                    )}
 
 
                 <div className="tabla-contenedor">
@@ -793,77 +1132,111 @@ function Membresias() {
 
                         <thead>
 
-                            <tr>
-                                <th>ID</th>
-                                <th>Nombre</th>
-                                <th>Costo</th>
-                                <th>Descuento</th>
-                                <th>Duración</th>
-                                <th>Activo</th>
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Costo</th>
+                            <th>Descuento</th>
+                            <th>Duración</th>
+                            <th>Activo</th>
+
+                            {esAdministrador && (
                                 <th>Acciones</th>
-                            </tr>
+                            )}
+
+                        </tr>
 
                         </thead>
 
+
                         <tbody>
 
-                            {categorias.map(categoria => (
+                        {categorias.map(
+                            categoria => (
 
-                                <tr key={categoria.idCategoria}>
+                                <tr
+                                    key={
+                                        categoria.idCategoria
+                                    }
+                                >
 
                                     <td>
-                                        {categoria.idCategoria}
+                                        {
+                                            categoria.idCategoria
+                                        }
                                     </td>
 
                                     <td>
-                                        {categoria.nombre}
+                                        {
+                                            categoria.nombre
+                                        }
                                     </td>
 
                                     <td>
-                                        ${categoria.costo}
+                                        $
+                                        {
+                                            categoria.costo
+                                        }
                                     </td>
 
                                     <td>
-                                        {categoria.porcDescuento}%
+                                        {
+                                            categoria.porcDescuento
+                                        }%
                                     </td>
 
                                     <td>
-                                        {categoria.duracionMeses} meses
+                                        {
+                                            categoria.duracionMeses
+                                        }{" "}
+                                        meses
                                     </td>
 
                                     <td>
-                                        {categoria.activo
-                                            ? "Sí"
-                                            : "No"}
+                                        {
+                                            categoria.activo
+                                                ? "Sí"
+                                                : "No"
+                                        }
                                     </td>
 
-                                    <td>
 
-                                        <button
-                                            className="boton-editar"
-                                            onClick={() =>
-                                                editarCategoria(categoria)
-                                            }
-                                        >
-                                            Editar
-                                        </button>
+                                    {esAdministrador && (
 
-                                        <button
-                                            className="boton-eliminar"
-                                            onClick={() =>
-                                                eliminarCategoria(
-                                                    categoria.idCategoria
-                                                )
-                                            }
-                                        >
-                                            Eliminar
-                                        </button>
+                                        <td>
 
-                                    </td>
+                                            <button
+                                                className="boton-editar"
+                                                onClick={() =>
+                                                    editarCategoria(
+                                                        categoria
+                                                    )
+                                                }
+                                            >
+                                                Editar
+                                            </button>
+
+
+                                            <button
+                                                className="boton-eliminar"
+                                                onClick={() =>
+                                                    eliminarCategoria(
+                                                        categoria.idCategoria
+                                                    )
+                                                }
+                                            >
+                                                Eliminar
+                                            </button>
+
+                                        </td>
+
+                                    )}
 
                                 </tr>
 
-                            ))}
+                            )
+                        )}
 
                         </tbody>
 

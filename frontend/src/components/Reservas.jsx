@@ -21,6 +21,21 @@ function Reservas() {
 
     const token = sessionStorage.getItem("token")
 
+    const usuarioActual = JSON.parse(
+        sessionStorage.getItem("usuario")
+    )
+
+    const roles = usuarioActual?.roles ?? []
+
+    const esAdministrador =
+        roles.includes("ADMINISTRADOR")
+
+    const esEmpleado =
+        roles.includes("EMPLEADO")
+
+    const esSocio =
+        roles.includes("SOCIO")
+
 
     // =========================
     // CARGAR DATOS
@@ -62,13 +77,20 @@ function Reservas() {
                 !respuestaUsuarios.ok ||
                 !respuestaInstalaciones.ok
             ) {
-                throw new Error("No se pudieron obtener los datos.")
+                throw new Error(
+                    "No se pudieron obtener los datos."
+                )
             }
 
 
-            const datosReservas = await respuestaReservas.json()
-            const datosUsuarios = await respuestaUsuarios.json()
-            const datosInstalaciones = await respuestaInstalaciones.json()
+            const datosReservas =
+                await respuestaReservas.json()
+
+            const datosUsuarios =
+                await respuestaUsuarios.json()
+
+            const datosInstalaciones =
+                await respuestaInstalaciones.json()
 
 
             setReservas(datosReservas)
@@ -80,15 +102,50 @@ function Reservas() {
 
             console.error(error)
 
-            setError("No se pudieron obtener los datos.")
+            setError(
+                "No se pudieron obtener los datos."
+            )
 
         }
     }
 
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         cargarDatos()
     }, [])
+
+
+    // =========================
+    // ABRIR FORMULARIO
+    // =========================
+
+    const abrirFormulario = () => {
+
+        setError("")
+
+        if (esSocio && usuarioActual?.idUsuario) {
+
+            setNuevaReserva(prev => ({
+                ...prev,
+                idUsuario: usuarioActual.idUsuario
+            }))
+
+        } else {
+
+            setNuevaReserva({
+                idUsuario: "",
+                idInstalacion: "",
+                fechaReserva: "",
+                horaInicio: "",
+                duracionHoras: 1,
+                montoTotal: ""
+            })
+
+        }
+
+        setMostrarFormulario(true)
+    }
 
 
     // =========================
@@ -99,13 +156,14 @@ function Reservas() {
 
         const { name, value } = e.target
 
-        setNuevaReserva({
-            ...nuevaReserva,
+        setNuevaReserva(prev => ({
+            ...prev,
             [name]: value
-        })
+        }))
 
 
         // Calcular monto automáticamente
+
         if (
             name === "idInstalacion" ||
             name === "duracionHoras"
@@ -125,17 +183,23 @@ function Reservas() {
 
             const instalacion =
                 instalaciones.find(
-                    i => i.idInstalacion === Number(idInstalacion)
+                    i =>
+                        i.idInstalacion ===
+                        Number(idInstalacion)
                 )
 
 
-            if (instalacion && duracion > 0) {
+            if (
+                instalacion &&
+                duracion > 0
+            ) {
 
                 setNuevaReserva(prev => ({
                     ...prev,
                     [name]: value,
                     montoTotal:
-                        Number(instalacion.tarifaBase) * duracion
+                        Number(instalacion.tarifaBase) *
+                        duracion
                 }))
 
             }
@@ -171,10 +235,10 @@ function Reservas() {
                 },
 
                 fechaReserva:
-                    nuevaReserva.fechaReserva,
+                nuevaReserva.fechaReserva,
 
                 horaInicio:
-                    nuevaReserva.horaInicio,
+                nuevaReserva.horaInicio,
 
                 duracionHoras:
                     Number(nuevaReserva.duracionHoras),
@@ -236,6 +300,34 @@ function Reservas() {
     // =========================
 
     const cancelarReserva = async (id) => {
+
+        const reserva =
+            reservas.find(
+                r => r.idReserva === id
+            )
+
+
+        if (!reserva) {
+            return
+        }
+
+
+        // Si es socio, solo puede cancelar
+        // sus propias reservas
+
+        if (
+            esSocio &&
+            reserva.usuario?.idUsuario !==
+            usuarioActual?.idUsuario
+        ) {
+
+            setError(
+                "No podés cancelar una reserva de otro usuario."
+            )
+
+            return
+        }
+
 
         if (
             !window.confirm(
@@ -343,15 +435,7 @@ function Reservas() {
 
                 <button
                     className="boton-principal"
-                    onClick={() => {
-
-                        setError("")
-
-                        setMostrarFormulario(
-                            !mostrarFormulario
-                        )
-
-                    }}
+                    onClick={abrirFormulario}
                 >
                     Nueva reserva
                 </button>
@@ -390,7 +474,9 @@ function Reservas() {
 
                     <div className="formulario-grid">
 
+                        {/* ========================= */}
                         {/* USUARIO */}
+                        {/* ========================= */}
 
                         <div>
 
@@ -398,36 +484,65 @@ function Reservas() {
                                 Usuario
                             </label>
 
-                            <select
-                                name="idUsuario"
-                                value={nuevaReserva.idUsuario}
-                                onChange={manejarCambio}
-                                required
-                            >
 
-                                <option value="">
-                                    Seleccionar usuario
-                                </option>
+                            {esSocio ? (
 
+                                <input
+                                    type="text"
+                                    value={
+                                        `${usuarioActual?.nombre || ""} ${
+                                            usuarioActual?.apellido || ""
+                                        }`
+                                    }
+                                    readOnly
+                                />
 
-                                {usuarios.map(usuario => (
+                            ) : (
 
-                                    <option
-                                        key={usuario.idUsuario}
-                                        value={usuario.idUsuario}
-                                    >
-                                        {usuario.nombre}{" "}
-                                        {usuario.apellido}
+                                <select
+                                    name="idUsuario"
+                                    value={
+                                        nuevaReserva.idUsuario
+                                    }
+                                    onChange={
+                                        manejarCambio
+                                    }
+                                    required
+                                >
+
+                                    <option value="">
+                                        Seleccionar usuario
                                     </option>
 
-                                ))}
 
-                            </select>
+                                    {usuarios.map(
+                                        usuario => (
+
+                                            <option
+                                                key={
+                                                    usuario.idUsuario
+                                                }
+                                                value={
+                                                    usuario.idUsuario
+                                                }
+                                            >
+                                                {usuario.nombre}{" "}
+                                                {usuario.apellido}
+                                            </option>
+
+                                        )
+                                    )}
+
+                                </select>
+
+                            )}
 
                         </div>
 
 
+                        {/* ========================= */}
                         {/* INSTALACIÓN */}
+                        {/* ========================= */}
 
                         <div>
 
@@ -437,8 +552,12 @@ function Reservas() {
 
                             <select
                                 name="idInstalacion"
-                                value={nuevaReserva.idInstalacion}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevaReserva.idInstalacion
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                                 required
                             >
 
@@ -453,20 +572,24 @@ function Reservas() {
                                             instalacion.estado ===
                                             "DISPONIBLE"
                                     )
-                                    .map(instalacion => (
+                                    .map(
+                                        instalacion => (
 
-                                        <option
-                                            key={
-                                                instalacion.idInstalacion
-                                            }
-                                            value={
-                                                instalacion.idInstalacion
-                                            }
-                                        >
-                                            {instalacion.nombre}
-                                        </option>
+                                            <option
+                                                key={
+                                                    instalacion.idInstalacion
+                                                }
+                                                value={
+                                                    instalacion.idInstalacion
+                                                }
+                                            >
+                                                {
+                                                    instalacion.nombre
+                                                }
+                                            </option>
 
-                                    ))}
+                                        )
+                                    )}
 
                             </select>
 
@@ -474,9 +597,13 @@ function Reservas() {
                             {instalacionSeleccionada && (
 
                                 <small>
+
                                     Tarifa: $
-                                    {instalacionSeleccionada.tarifaBase}
+                                    {
+                                        instalacionSeleccionada.tarifaBase
+                                    }
                                     {" "}por hora
+
                                 </small>
 
                             )}
@@ -484,7 +611,9 @@ function Reservas() {
                         </div>
 
 
+                        {/* ========================= */}
                         {/* FECHA */}
+                        {/* ========================= */}
 
                         <div>
 
@@ -495,15 +624,21 @@ function Reservas() {
                             <input
                                 type="date"
                                 name="fechaReserva"
-                                value={nuevaReserva.fechaReserva}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevaReserva.fechaReserva
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                                 required
                             />
 
                         </div>
 
 
+                        {/* ========================= */}
                         {/* HORA */}
+                        {/* ========================= */}
 
                         <div>
 
@@ -514,15 +649,21 @@ function Reservas() {
                             <input
                                 type="time"
                                 name="horaInicio"
-                                value={nuevaReserva.horaInicio}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevaReserva.horaInicio
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                                 required
                             />
 
                         </div>
 
 
+                        {/* ========================= */}
                         {/* DURACIÓN */}
+                        {/* ========================= */}
 
                         <div>
 
@@ -534,15 +675,21 @@ function Reservas() {
                                 type="number"
                                 name="duracionHoras"
                                 min="1"
-                                value={nuevaReserva.duracionHoras}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevaReserva.duracionHoras
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                                 required
                             />
 
                         </div>
 
 
+                        {/* ========================= */}
                         {/* MONTO */}
+                        {/* ========================= */}
 
                         <div>
 
@@ -553,7 +700,9 @@ function Reservas() {
                             <input
                                 type="number"
                                 name="montoTotal"
-                                value={nuevaReserva.montoTotal}
+                                value={
+                                    nuevaReserva.montoTotal
+                                }
                                 readOnly
                             />
 
@@ -562,14 +711,18 @@ function Reservas() {
                     </div>
 
 
+                    {/* ========================= */}
                     {/* BOTONES */}
+                    {/* ========================= */}
 
                     <div className="formulario-botones">
 
                         <button
                             type="button"
                             className="boton-secundario"
-                            onClick={limpiarFormulario}
+                            onClick={
+                                limpiarFormulario
+                            }
                         >
                             Cancelar
                         </button>
@@ -599,52 +752,53 @@ function Reservas() {
 
                     <thead>
 
-                        <tr>
+                    <tr>
 
-                            <th>
-                                ID
-                            </th>
+                        <th>
+                            ID
+                        </th>
 
-                            <th>
-                                Usuario
-                            </th>
+                        <th>
+                            Usuario
+                        </th>
 
-                            <th>
-                                Instalación
-                            </th>
+                        <th>
+                            Instalación
+                        </th>
 
-                            <th>
-                                Fecha
-                            </th>
+                        <th>
+                            Fecha
+                        </th>
 
-                            <th>
-                                Hora
-                            </th>
+                        <th>
+                            Hora
+                        </th>
 
-                            <th>
-                                Duración
-                            </th>
+                        <th>
+                            Duración
+                        </th>
 
-                            <th>
-                                Monto
-                            </th>
+                        <th>
+                            Monto
+                        </th>
 
-                            <th>
-                                Estado
-                            </th>
+                        <th>
+                            Estado
+                        </th>
 
-                            <th>
-                                Acciones
-                            </th>
+                        <th>
+                            Acciones
+                        </th>
 
-                        </tr>
+                    </tr>
 
                     </thead>
 
 
                     <tbody>
 
-                        {reservas.map(reserva => (
+                    {reservas.map(
+                        reserva => (
 
                             <tr
                                 key={
@@ -653,56 +807,76 @@ function Reservas() {
                             >
 
                                 <td>
-                                    {reserva.idReserva}
+                                    {
+                                        reserva.idReserva
+                                    }
                                 </td>
 
 
                                 <td>
 
-                                    {reserva.usuario?.nombre}{" "}
-                                    {reserva.usuario?.apellido}
+                                    {
+                                        reserva.usuario?.nombre
+                                    }{" "}
 
-                                </td>
-
-
-                                <td>
-
-                                    {reserva.instalacion?.nombre}
-
-                                </td>
-
-
-                                <td>
-
-                                    {reserva.fechaReserva}
+                                    {
+                                        reserva.usuario?.apellido
+                                    }
 
                                 </td>
 
 
                                 <td>
 
-                                    {reserva.horaInicio}
+                                    {
+                                        reserva.instalacion?.nombre
+                                    }
 
                                 </td>
 
 
                                 <td>
 
-                                    {reserva.duracionHoras} hs
+                                    {
+                                        reserva.fechaReserva
+                                    }
 
                                 </td>
 
 
                                 <td>
 
-                                    ${reserva.montoTotal}
+                                    {
+                                        reserva.horaInicio
+                                    }
 
                                 </td>
 
 
                                 <td>
 
-                                    {reserva.estado}
+                                    {
+                                        reserva.duracionHoras
+                                    } hs
+
+                                </td>
+
+
+                                <td>
+
+                                    $
+                                    {
+                                        reserva.montoTotal
+                                    }
+
+                                </td>
+
+
+                                <td>
+
+                                    {
+                                        reserva.estado
+                                    }
 
                                 </td>
 
@@ -712,24 +886,25 @@ function Reservas() {
                                     {reserva.estado !==
                                         "CANCELADA" && (
 
-                                        <button
-                                            className="boton-eliminar"
-                                            onClick={() =>
-                                                cancelarReserva(
-                                                    reserva.idReserva
-                                                )
-                                            }
-                                        >
-                                            Cancelar
-                                        </button>
+                                            <button
+                                                className="boton-eliminar"
+                                                onClick={() =>
+                                                    cancelarReserva(
+                                                        reserva.idReserva
+                                                    )
+                                                }
+                                            >
+                                                Cancelar
+                                            </button>
 
-                                    )}
+                                        )}
 
                                 </td>
 
                             </tr>
 
-                        ))}
+                        )
+                    )}
 
                     </tbody>
 
