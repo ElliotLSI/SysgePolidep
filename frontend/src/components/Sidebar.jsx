@@ -57,6 +57,13 @@ function Sidebar({
                 "ADMINISTRADOR",
                 "SOCIO"
             ]
+        },
+        {
+            id: "reportes",
+            nombre: "Reportes",
+            roles: [
+                "ADMINISTRADOR"
+            ]
         }
     ]
 
