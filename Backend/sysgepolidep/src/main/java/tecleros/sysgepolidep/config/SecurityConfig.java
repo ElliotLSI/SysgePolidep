@@ -74,70 +74,41 @@ public class SecurityConfig {
             HttpSecurity http) throws Exception {
 
         http
-                // ==============================
-                // CORS
-                // ==============================
                 .cors(cors ->
                         cors.configurationSource(
                                 corsConfigurationSource()
                         )
                 )
 
-                // ==============================
-                // CSRF
-                // ==============================
-                // Deshabilitado porque usamos JWT
                 .csrf(csrf -> csrf.disable())
 
-                // ==============================
-                // SESIONES
-                // ==============================
-                // API REST sin sesiones
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
                         )
                 )
 
-                // ==============================
-                // AUTORIZACIÓN
-                // ==============================
                 .authorizeHttpRequests(auth -> auth
 
-                        // ==============================
-                        // CORS PREFLIGHT
-                        // ==============================
                         .requestMatchers(
                                 HttpMethod.OPTIONS,
                                 "/**"
                         ).permitAll()
 
-                        // ==============================
-                        // AUTENTICACIÓN
-                        // ==============================
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/auth/login"
                         ).permitAll()
 
-                        // ==============================
-                        // REGISTRO DE USUARIO
-                        // ==============================
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/usuarios"
                         ).permitAll()
 
-                        // ==============================
-                        // PRUEBA DE ROL
-                        // ==============================
                         .requestMatchers(
                                 "/api/auth/prueba-rol"
                         ).hasRole("ADMINISTRADOR")
 
-                        // ==============================
-                        // CONSULTAR ROLES
-                        // ==============================
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/auth/roles/**"
@@ -146,18 +117,11 @@ public class SecurityConfig {
                                 "EMPLEADO"
                         )
 
-                        // ==============================
-                        // ADMINISTRADORES
-                        // ==============================
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/administradores/**"
                         ).hasRole("ADMINISTRADOR")
 
-                        // ==============================
-                        // CATEGORÍAS
-                        // ==============================
-
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/categorias/**"
@@ -178,10 +142,6 @@ public class SecurityConfig {
                                 "/api/categorias/**"
                         ).hasRole("ADMINISTRADOR")
 
-                        // ==============================
-                        // INSTALACIONES
-                        // ==============================
-
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/instalaciones/**"
@@ -201,10 +161,6 @@ public class SecurityConfig {
                                 HttpMethod.DELETE,
                                 "/api/instalaciones/**"
                         ).hasRole("ADMINISTRADOR")
-
-                        // ==============================
-                        // RESERVAS
-                        // ==============================
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -231,30 +187,21 @@ public class SecurityConfig {
                                 "USUARIO"
                         )
 
-                        // ==============================
-                        // RESERVAS A FAVOR
-                        // ==============================
-
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/reservas-a-favor/**"
                         ).authenticated()
 
-                        // La creación se realiza
-                        // internamente al cancelar
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/reservas-a-favor"
                         ).denyAll()
 
-                        // La utilización se realiza
-                        // internamente al reprogramar
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/api/reservas-a-favor/*/utilizar"
                         ).denyAll()
 
-                        // No permitimos borrar créditos
                         .requestMatchers(
                                 HttpMethod.DELETE,
                                 "/api/reservas-a-favor/**"
@@ -267,10 +214,6 @@ public class SecurityConfig {
                                 "SOCIO",
                                 "USUARIO"
                         )
-
-                        // ==============================
-                        // PAGOS
-                        // ==============================
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -291,10 +234,6 @@ public class SecurityConfig {
                                 HttpMethod.DELETE,
                                 "/api/pagos/**"
                         ).hasRole("ADMINISTRADOR")
-
-                        // ==============================
-                        // SOCIOS
-                        // ==============================
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -323,10 +262,6 @@ public class SecurityConfig {
                                 "/api/socios/**"
                         ).hasRole("ADMINISTRADOR")
 
-                        // ==============================
-                        // MEMBRESÍAS
-                        // ==============================
-
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/membresias/**"
@@ -354,10 +289,6 @@ public class SecurityConfig {
                                 "/api/membresias/**"
                         ).hasRole("ADMINISTRADOR")
 
-                        // ==============================
-                        // MANTENIMIENTOS
-                        // ==============================
-
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/mantenimientos/**"
@@ -376,10 +307,6 @@ public class SecurityConfig {
                                 "/api/mantenimientos/**"
                         ).hasRole("ADMINISTRADOR")
 
-                        // ==============================
-                        // USUARIOS
-                        // ==============================
-
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/usuarios/**"
@@ -395,16 +322,12 @@ public class SecurityConfig {
                                 "/api/usuarios/**"
                         ).hasRole("ADMINISTRADOR")
 
-                        // ==============================
-                        // CUALQUIER OTRA RUTA
-                        // ==============================
+                        .requestMatchers(
+                                "/api/reportes/**"
+                        ).hasRole("ADMINISTRADOR")
 
                         .anyRequest().authenticated()
                 )
-
-                // ==============================
-                // JWT FILTER
-                // ==============================
 
                 .addFilterBefore(
                         jwtAuthenticationFilter,
