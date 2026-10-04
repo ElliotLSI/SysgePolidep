@@ -1,4 +1,5 @@
-        package tecleros.sysgepolidep.reserva;
+
+package tecleros.sysgepolidep.reserva;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -510,16 +511,11 @@ public class ReservaService {
         // ========================================================
 
         /*
-         * Por ahora controlamos que la reserva no haya comenzado.
+         * La reserva debe cancelarse con una anticipación
+         * mínima de 48 horas hábiles.
          *
-         * La regla de negocio del proyecto establece una
-         * anticipación mínima de 48 horas hábiles.
-         *
-         * Como todavía no tenemos definido en el sistema
-         * el horario laboral oficial para calcular "horas hábiles",
-         * no inventamos ese horario acá.
-         *
-         * Sí impedimos cancelar una reserva que ya comenzó.
+         * Se consideran hábiles los días de lunes a viernes.
+         * No se contemplan feriados.
          */
 
         LocalDateTime inicioReserva =
@@ -528,11 +524,14 @@ public class ReservaService {
                         reserva.getHoraInicio()
                 );
 
+        LocalDateTime limiteCancelacion =
+                calcularLimiteCancelacion(inicioReserva);
+
         if (LocalDateTime.now()
-                .isAfter(inicioReserva)) {
+                .isAfter(limiteCancelacion)) {
 
             throw new IllegalArgumentException(
-                    "No se puede cancelar una reserva que ya comenzó."
+                    "La reserva debe cancelarse con al menos 48 horas hábiles de anticipación."
             );
         }
 
@@ -621,6 +620,44 @@ public class ReservaService {
                     reservaAFavor
             );
         }
+    }
+
+
+    // ============================================================
+    // CALCULAR LÍMITE DE CANCELACIÓN
+    // ============================================================
+
+    private LocalDateTime calcularLimiteCancelacion(
+            LocalDateTime inicioReserva
+    ) {
+
+        LocalDateTime limite =
+                inicioReserva;
+
+        int horasHabiles = 0;
+
+        while (horasHabiles < 48) {
+
+            limite = limite.minusHours(1);
+
+            /*
+             * Lunes = 1
+             * Martes = 2
+             * Miércoles = 3
+             * Jueves = 4
+             * Viernes = 5
+             * Sábado = 6
+             * Domingo = 7
+             *
+             * Por lo tanto, solamente contamos
+             * lunes a viernes.
+             */
+            if (limite.getDayOfWeek().getValue() <= 5) {
+                horasHabiles++;
+            }
+        }
+
+        return limite;
     }
 
 
@@ -715,4 +752,3 @@ public class ReservaService {
                 );
     }
 }
-

@@ -14,26 +14,60 @@ public class UsuarioController {
     @Autowired
     private UsuarioService usuarioService;
 
+
+    // ==========================================================
+    // OBTENER TODOS
+    // ==========================================================
+
     @GetMapping
     public List<UsuarioResponseDTO> obtenerTodos() {
+
         return usuarioService.listarTodos()
                 .stream()
                 .map(this::convertirADTO)
                 .collect(Collectors.toList());
     }
 
-    @GetMapping("/{id}")
-    public UsuarioResponseDTO obtenerPorId(@PathVariable Long id) {
-        Optional<Usuario> usuario = usuarioService.buscarPorId(id);
 
-        return usuario.map(this::convertirADTO).orElse(null);
+    // ==========================================================
+    // OBTENER POR ID
+    // ==========================================================
+
+    @GetMapping("/{id}")
+    public UsuarioResponseDTO obtenerPorId(
+            @PathVariable Long id) {
+
+        Optional<Usuario> usuario =
+                usuarioService.buscarPorId(id);
+
+        return usuario
+                .map(this::convertirADTO)
+                .orElse(null);
     }
+
+
+    // ==========================================================
+    // CREAR USUARIO
+    // ==========================================================
 
     @PostMapping
-    public UsuarioResponseDTO crearUsuario(@RequestBody Usuario usuario) {
-        Usuario usuarioGuardado = usuarioService.guardarUsuario(usuario);
-        return convertirADTO(usuarioGuardado);
+    public UsuarioResponseDTO crearUsuario(
+            @RequestBody Usuario usuario) {
+
+        Usuario usuarioGuardado =
+                usuarioService.guardarUsuario(
+                        usuario
+                );
+
+        return convertirADTO(
+                usuarioGuardado
+        );
     }
+
+
+    // ==========================================================
+    // ACTUALIZAR USUARIO
+    // ==========================================================
 
     @PutMapping("/{id}")
     public UsuarioResponseDTO actualizarUsuario(
@@ -41,17 +75,38 @@ public class UsuarioController {
             @RequestBody Usuario usuario) {
 
         Usuario usuarioActualizado =
-                usuarioService.actualizarUsuario(id, usuario);
+                usuarioService.actualizarUsuario(
+                        id,
+                        usuario
+                );
 
-        return convertirADTO(usuarioActualizado);
+        return convertirADTO(
+                usuarioActualizado
+        );
     }
+
+
+    // ==========================================================
+    // ELIMINAR USUARIO
+    // ==========================================================
 
     @DeleteMapping("/{id}")
-    public void eliminarUsuario(@PathVariable Long id) {
-        usuarioService.eliminarUsuario(id);
+    public void eliminarUsuario(
+            @PathVariable Long id) {
+
+        usuarioService.eliminarUsuario(
+                id
+        );
     }
 
-    private UsuarioResponseDTO convertirADTO(Usuario usuario) {
+
+    // ==========================================================
+    // CONVERTIR A DTO
+    // ==========================================================
+
+    private UsuarioResponseDTO convertirADTO(
+            Usuario usuario) {
+
         return new UsuarioResponseDTO(
                 usuario.getIdUsuario(),
                 usuario.getNombre(),
