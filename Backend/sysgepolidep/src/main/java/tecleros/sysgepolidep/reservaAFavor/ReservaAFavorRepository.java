@@ -17,4 +17,9 @@ public interface ReservaAFavorRepository
     List<ReservaAFavor> findByUsuarioIdUsuarioAndUtilizadaFalse(
             Long idUsuario
     );
+
+    List<ReservaAFavor> findByUsuarioIdUsuarioAndUtilizadaFalseAndMontoAcreditadoGreaterThan(
+            Long idUsuario,
+            Double monto
+    );
 }
