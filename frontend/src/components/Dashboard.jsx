@@ -5,6 +5,7 @@ import Instalaciones from "./Instalaciones"
 import Membresias from "./Membresias"
 import Reservas from "./Reservas"
 import Pagos from "./Pagos"
+import Reportes from "./Reportes"
 
 function Dashboard() {
     const [usuario, setUsuario] = useState(
@@ -18,8 +19,9 @@ function Dashboard() {
         usuarios: ["ADMINISTRADOR"],
         membresias: ["ADMINISTRADOR", "EMPLEADO"],
         instalaciones: ["ADMINISTRADOR", "EMPLEADO"],
-        reservas: ["ADMINISTRADOR", "EMPLEADO", "SOCIO", "USUARIO"],
-        pagos: ["ADMINISTRADOR", "EMPLEADO", "SOCIO", "USUARIO"]
+        reservas: ["ADMINISTRADOR", "EMPLEADO", "SOCIO"],
+        pagos: ["ADMINISTRADOR", "SOCIO"],
+        reportes: ["ADMINISTRADOR"]
     }
 
     const roles = usuario?.roles ?? []
@@ -55,7 +57,8 @@ function Dashboard() {
         membresias: "Membresías",
         instalaciones: "Instalaciones",
         reservas: "Reservas",
-        pagos: "Pagos"
+        pagos: "Pagos",
+        reportes: "Reportes"
     }
 
     const renderizarSeccion = () => {
@@ -78,6 +81,9 @@ function Dashboard() {
 
             case "pagos":
                 return <Pagos />
+
+            case "reportes":
+                return <Reportes />
 
             case "inicio":
             default:
