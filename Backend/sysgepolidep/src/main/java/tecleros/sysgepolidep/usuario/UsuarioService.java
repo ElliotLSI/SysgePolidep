@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,14 +26,6 @@ public class UsuarioService {
     // ==========================================================
 
     public List<Usuario> listarTodos() {
-
-        /*
-         * ADMINISTRADOR y EMPLEADO pueden consultar
-         * todos los usuarios.
-         *
-         * Los usuarios normales solamente pueden
-         * consultar su propio registro.
-         */
 
         if (esAdministrador() || esEmpleado()) {
             return usuarioRepository.findAll();
@@ -66,19 +59,9 @@ public class UsuarioService {
             return Optional.empty();
         }
 
-        /*
-         * ADMINISTRADOR y EMPLEADO pueden consultar
-         * cualquier usuario.
-         */
-
         if (esAdministrador() || esEmpleado()) {
             return usuarioOpt;
         }
-
-        /*
-         * Usuario normal solamente puede consultar
-         * su propio registro.
-         */
 
         Usuario usuarioActual =
                 obtenerUsuarioActual();
@@ -130,6 +113,26 @@ public class UsuarioService {
 
             throw new IllegalArgumentException(
                     "El apellido es obligatorio."
+            );
+        }
+
+
+        // ------------------------------------------------------
+        // FECHA DE NACIMIENTO
+        // ------------------------------------------------------
+
+        if (usuario.getFechaNacimiento() == null) {
+
+            throw new IllegalArgumentException(
+                    "La fecha de nacimiento es obligatoria."
+            );
+        }
+
+        if (usuario.getFechaNacimiento()
+                .isAfter(LocalDate.now())) {
+
+            throw new IllegalArgumentException(
+                    "La fecha de nacimiento no puede ser posterior a la fecha actual."
             );
         }
 
@@ -365,13 +368,6 @@ public class UsuarioService {
         boolean empleado =
                 esEmpleado();
 
-        /*
-         * ADMINISTRADOR y EMPLEADO pueden modificar
-         * cualquier usuario.
-         *
-         * Un usuario normal solamente puede modificar
-         * su propio registro.
-         */
 
         if (!administrador && !empleado) {
 
@@ -387,17 +383,9 @@ public class UsuarioService {
             }
 
 
-            /*
-             * Para un usuario normal solamente permitimos
-             * modificar datos de contacto.
-             *
-             * No puede cambiar:
-             * - DNI
-             * - nombre de usuario
-             * - pertenencia
-             * - legajo
-             * - estado
-             */
+            // --------------------------------------------------
+            // EMAIL
+            // --------------------------------------------------
 
             if (datos.getEmail() == null ||
                     datos.getEmail().trim().isEmpty()) {
@@ -439,11 +427,9 @@ public class UsuarioService {
             );
 
 
-            /*
-             * Permitimos cambiar la contraseña del propio
-             * usuario porque es una operación sobre su
-             * propia cuenta.
-             */
+            // --------------------------------------------------
+            // CONTRASEÑA
+            // --------------------------------------------------
 
             if (datos.getPassword() != null &&
                     !datos.getPassword()
@@ -467,6 +453,7 @@ public class UsuarioService {
         // ACTUALIZACIÓN ADMINISTRATIVA
         // ======================================================
 
+
         // ------------------------------------------------------
         // NOMBRE
         // ------------------------------------------------------
@@ -489,6 +476,26 @@ public class UsuarioService {
 
             throw new IllegalArgumentException(
                     "El apellido es obligatorio."
+            );
+        }
+
+
+        // ------------------------------------------------------
+        // FECHA DE NACIMIENTO
+        // ------------------------------------------------------
+
+        if (datos.getFechaNacimiento() == null) {
+
+            throw new IllegalArgumentException(
+                    "La fecha de nacimiento es obligatoria."
+            );
+        }
+
+        if (datos.getFechaNacimiento()
+                .isAfter(LocalDate.now())) {
+
+            throw new IllegalArgumentException(
+                    "La fecha de nacimiento no puede ser posterior a la fecha actual."
             );
         }
 
@@ -703,11 +710,6 @@ public class UsuarioService {
         // ------------------------------------------------------
         // CONTRASEÑA
         // ------------------------------------------------------
-
-        /*
-         * Si el administrador no envía una contraseña,
-         * conservamos la actual.
-         */
 
         if (datos.getPassword() != null &&
                 !datos.getPassword()
