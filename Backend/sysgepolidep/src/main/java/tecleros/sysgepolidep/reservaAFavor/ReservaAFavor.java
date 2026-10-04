@@ -21,9 +21,6 @@ public class ReservaAFavor {
     @Column(name = "Id_ReservaAFavor")
     private Long idReservaAFavor;
 
-    @Column(name = "Monto_Acreditado", nullable = false)
-    private Double montoAcreditado;
-
     @Column(name = "Fecha_Generacion", nullable = false)
     private LocalDate fechaGeneracion;
 
@@ -34,10 +31,17 @@ public class ReservaAFavor {
     private Boolean utilizada = false;
 
     @OneToOne
-    @JoinColumn(name = "Id_Reserva_Origen", nullable = false, unique = true)
+    @JoinColumn(
+            name = "Id_Reserva_Origen",
+            nullable = false,
+            unique = true
+    )
     private Reserva reservaOrigen;
 
     @ManyToOne
-    @JoinColumn(name = "Id_Usuario", nullable = false)
+    @JoinColumn(
+            name = "Id_Usuario",
+            nullable = false
+    )
     private Usuario usuario;
 }

@@ -10,16 +10,15 @@ import java.util.Optional;
 public interface ReservaAFavorRepository
         extends JpaRepository<ReservaAFavor, Long> {
 
-    List<ReservaAFavor> findByUsuarioIdUsuario(Long idUsuario);
-
-    Optional<ReservaAFavor> findByReservaOrigenIdReserva(Long idReserva);
-
-    List<ReservaAFavor> findByUsuarioIdUsuarioAndUtilizadaFalse(
+    List<ReservaAFavor> findByUsuarioIdUsuario(
             Long idUsuario
     );
 
-    List<ReservaAFavor> findByUsuarioIdUsuarioAndUtilizadaFalseAndMontoAcreditadoGreaterThan(
-            Long idUsuario,
-            Double monto
+    Optional<ReservaAFavor> findByReservaOrigenIdReserva(
+            Long idReserva
+    );
+
+    List<ReservaAFavor> findByUsuarioIdUsuarioAndUtilizadaFalse(
+            Long idUsuario
     );
 }

@@ -8,8 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import tecleros.sysgepolidep.instalacion.Instalacion;
 import tecleros.sysgepolidep.instalacion.InstalacionRepository;
-import tecleros.sysgepolidep.membresia.Membresia;
-import tecleros.sysgepolidep.membresia.MembresiaRepository;
 import tecleros.sysgepolidep.reserva.Reserva;
 import tecleros.sysgepolidep.reserva.ReservaRepository;
 import tecleros.sysgepolidep.usuario.Usuario;
@@ -35,9 +33,6 @@ public class ReservaAFavorService {
 
     @Autowired
     private InstalacionRepository instalacionRepository;
-
-    @Autowired
-    private MembresiaRepository membresiaRepository;
 
 
     // ============================================================
@@ -165,38 +160,68 @@ public class ReservaAFavorService {
             );
         }
 
-        /*
-         * Una reserva a favor disponible debe:
-         *
-         * 1. Pertenecer al usuario.
-         * 2. No estar utilizada.
-         * 3. Tener saldo mayor a $0.
-         */
-
-        if (esAdministrador() || esEmpleado()) {
-
-            return reservaAFavorRepository
-                    .findByUsuarioIdUsuarioAndUtilizadaFalseAndMontoAcreditadoGreaterThan(
-                            idUsuario,
-                            0.0
-                    );
-        }
-
         Usuario usuarioActual =
                 obtenerUsuarioActual();
 
-        if (!usuarioActual.getIdUsuario()
-                .equals(idUsuario)) {
+        if (!esAdministrador() &&
+                !esEmpleado() &&
+                !usuarioActual.getIdUsuario()
+                        .equals(idUsuario)) {
 
             throw new IllegalArgumentException(
                     "No podés consultar las reservas a favor de otro usuario."
             );
         }
 
+
+        /*
+         * Una reserva a favor disponible debe:
+         *
+         * 1. Pertenecer al usuario.
+         * 2. No haber sido utilizada.
+         * 3. No estar vencida.
+         */
+
+        List<ReservaAFavor> reservas =
+                reservaAFavorRepository
+                        .findByUsuarioIdUsuarioAndUtilizadaFalse(
+                                idUsuario
+                        );
+
+        LocalDate hoy =
+                LocalDate.now();
+
+
+        /*
+         * Si una reserva a favor ya venció,
+         * se marca automáticamente como utilizada
+         * para que deje de aparecer como disponible.
+         */
+
+        for (ReservaAFavor reservaAFavor : reservas) {
+
+            if (reservaAFavor.getFechaVencimiento() != null &&
+                    !hoy.isBefore(
+                            reservaAFavor.getFechaVencimiento()
+                    )) {
+
+                reservaAFavor.setUtilizada(true);
+
+                reservaAFavorRepository.save(
+                        reservaAFavor
+                );
+            }
+        }
+
+
+        /*
+         * Volvemos a consultar para obtener solamente
+         * las reservas que siguen disponibles.
+         */
+
         return reservaAFavorRepository
-                .findByUsuarioIdUsuarioAndUtilizadaFalseAndMontoAcreditadoGreaterThan(
-                        idUsuario,
-                        0.0
+                .findByUsuarioIdUsuarioAndUtilizadaFalse(
+                        idUsuario
                 );
     }
 
@@ -256,6 +281,20 @@ public class ReservaAFavorService {
 
 
         // ========================================================
+        // VERIFICAR INSTALACIÓN
+        // ========================================================
+
+        if (reservaExistente.getInstalacion() == null ||
+                reservaExistente.getInstalacion()
+                        .getIdInstalacion() == null) {
+
+            throw new IllegalArgumentException(
+                    "La reserva de origen no tiene una instalación válida."
+            );
+        }
+
+
+        // ========================================================
         // EVITAR DUPLICADOS
         // ========================================================
 
@@ -286,21 +325,6 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // MONTO
-        // ========================================================
-
-        Double monto =
-                reservaExistente.getMontoTotal();
-
-        if (monto == null || monto <= 0) {
-
-            throw new IllegalArgumentException(
-                    "La reserva de origen no tiene un monto válido para generar la reserva a favor."
-            );
-        }
-
-
-        // ========================================================
         // FECHAS
         // ========================================================
 
@@ -314,10 +338,6 @@ public class ReservaAFavorService {
         // ========================================================
         // CREAR RESERVA A FAVOR
         // ========================================================
-
-        reservaAFavor.setMontoAcreditado(
-                monto
-        );
 
         reservaAFavor.setFechaGeneracion(
                 fechaGeneracion
@@ -337,6 +357,7 @@ public class ReservaAFavorService {
                 usuario
         );
 
+
         return reservaAFavorRepository
                 .save(reservaAFavor);
     }
@@ -350,9 +371,7 @@ public class ReservaAFavorService {
     public Reserva reprogramarReserva(
             Long idReservaAFavor,
             LocalDate nuevaFecha,
-            LocalTime nuevaHora,
-            Integer nuevaDuracion,
-            Long idInstalacion) {
+            LocalTime nuevaHora) {
 
 
         // ========================================================
@@ -435,6 +454,12 @@ public class ReservaAFavorService {
                 reservaAFavor.getFechaVencimiento()
         )) {
 
+            reservaAFavor.setUtilizada(true);
+
+            reservaAFavorRepository.save(
+                    reservaAFavor
+            );
+
             throw new IllegalArgumentException(
                     "La reserva a favor se encuentra vencida."
             );
@@ -442,17 +467,55 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // VALIDAR SALDO
+        // OBTENER RESERVA ORIGINAL
         // ========================================================
 
-        Double saldoDisponible =
-                reservaAFavor.getMontoAcreditado();
+        Reserva reservaOrigen =
+                reservaAFavor.getReservaOrigen();
 
-        if (saldoDisponible == null ||
-                saldoDisponible <= 0) {
+        if (reservaOrigen == null) {
 
             throw new IllegalArgumentException(
-                    "La reserva a favor no tiene saldo disponible."
+                    "La reserva a favor no tiene una reserva de origen."
+            );
+        }
+
+
+        // ========================================================
+        // OBTENER INSTALACIÓN ORIGINAL
+        // ========================================================
+
+        Instalacion instalacionOriginal =
+                reservaOrigen.getInstalacion();
+
+        if (instalacionOriginal == null ||
+                instalacionOriginal.getIdInstalacion() == null) {
+
+            throw new IllegalArgumentException(
+                    "La reserva de origen no tiene una instalación válida."
+            );
+        }
+
+
+        // ========================================================
+        // OBTENER DURACIÓN ORIGINAL
+        // ========================================================
+
+        /*
+         * La duración NO la elige el usuario.
+         *
+         * Se conserva exactamente la duración
+         * de la reserva que fue cancelada.
+         */
+
+        Integer duracionOriginal =
+                reservaOrigen.getDuracionHoras();
+
+        if (duracionOriginal == null ||
+                duracionOriginal <= 0) {
+
+            throw new IllegalArgumentException(
+                    "La reserva de origen no tiene una duración válida."
             );
         }
 
@@ -471,7 +534,7 @@ public class ReservaAFavorService {
         if (nuevaFecha.isBefore(LocalDate.now())) {
 
             throw new IllegalArgumentException(
-                    "No se puede reprogramar una reserva para una fecha pasada."
+                    "No se puede realizar una reserva para una fecha pasada."
             );
         }
 
@@ -489,32 +552,12 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // VALIDAR DURACIÓN
-        // ========================================================
-
-        if (nuevaDuracion == null ||
-                nuevaDuracion <= 0) {
-
-            throw new IllegalArgumentException(
-                    "La duración debe ser mayor a 0."
-            );
-        }
-
-        if (nuevaDuracion > 24) {
-
-            throw new IllegalArgumentException(
-                    "La duración no puede superar las 24 horas."
-            );
-        }
-
-
-        // ========================================================
         // CALCULAR FIN
         // ========================================================
 
         LocalTime nuevaFin =
                 nuevaHora.plusHours(
-                        nuevaDuracion
+                        duracionOriginal
                 );
 
         if (!nuevaFin.isAfter(nuevaHora)) {
@@ -526,22 +569,18 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // VALIDAR INSTALACIÓN
+        // VERIFICAR INSTALACIÓN ORIGINAL
         // ========================================================
 
-        if (idInstalacion == null) {
-
-            throw new IllegalArgumentException(
-                    "La instalación es obligatoria."
-            );
-        }
+        Long idInstalacion =
+                instalacionOriginal.getIdInstalacion();
 
         Instalacion instalacion =
                 instalacionRepository.findById(
                         idInstalacion
                 ).orElseThrow(() ->
                         new IllegalArgumentException(
-                                "La instalación no existe."
+                                "La instalación original ya no existe."
                         )
                 );
 
@@ -554,7 +593,7 @@ public class ReservaAFavorService {
                 instalacion.getEstado())) {
 
             throw new IllegalArgumentException(
-                    "La instalación no está disponible para reservar."
+                    "La instalación original no está disponible para reservar."
             );
         }
 
@@ -605,110 +644,12 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // CALCULAR PRECIO
-        // ========================================================
-
-        if (instalacion.getTarifaBase() == null ||
-                instalacion.getTarifaBase() < 0) {
-
-            throw new IllegalArgumentException(
-                    "La tarifa base de la instalación no es válida."
-            );
-        }
-
-        double montoBase =
-                instalacion.getTarifaBase()
-                        * nuevaDuracion;
-
-        double descuento = 0.0;
-
-
-        // ========================================================
-        // BUSCAR MEMBRESÍA VIGENTE
-        // ========================================================
-
-        Usuario usuario =
-                reservaAFavor.getUsuario();
-
-        List<Membresia> membresiasVigentes =
-                membresiaRepository
-                        .findBySocioIdUsuarioAndEstado(
-                                usuario.getIdUsuario(),
-                                "VIGENTE"
-                        );
-
-        if (!membresiasVigentes.isEmpty()) {
-
-            Membresia membresia =
-                    membresiasVigentes.get(0);
-
-            if (membresia.getCategoria() != null &&
-                    membresia.getCategoria()
-                            .getPorcDescuento() != null) {
-
-                descuento =
-                        membresia.getCategoria()
-                                .getPorcDescuento();
-            }
-        }
-
-
-        // ========================================================
-        // CALCULAR MONTO DE NUEVA RESERVA
-        // ========================================================
-
-        double montoNuevaReserva =
-                montoBase -
-                        (montoBase * descuento / 100.0);
-
-        if (montoNuevaReserva < 0) {
-            montoNuevaReserva = 0;
-        }
-
-
-        // ========================================================
-        // VERIFICAR SI EL SALDO ALCANZA
-        // ========================================================
-
-        if (saldoDisponible < montoNuevaReserva) {
-
-            throw new IllegalArgumentException(
-                    "La reserva a favor no tiene saldo suficiente. "
-                            + "Saldo disponible: $"
-                            + String.format(
-                            "%.2f",
-                            saldoDisponible
-                    )
-                            + ". Monto de la nueva reserva: $"
-                            + String.format(
-                            "%.2f",
-                            montoNuevaReserva
-                    )
-                            + "."
-            );
-        }
-
-
-        // ========================================================
-        // CALCULAR SALDO RESTANTE
-        // ========================================================
-
-        double saldoRestante =
-                saldoDisponible -
-                        montoNuevaReserva;
-
-        saldoRestante =
-                Math.round(
-                        saldoRestante * 100.0
-                ) / 100.0;
-
-
-        // ========================================================
         // CREAR NUEVA RESERVA
         // ========================================================
 
         Reserva nuevaReserva =
                 new Reserva();
+
 
         nuevaReserva.setFechaReserva(
                 nuevaFecha
@@ -718,30 +659,53 @@ public class ReservaAFavorService {
                 nuevaHora
         );
 
-        nuevaReserva.setDuracionHoras(
-                nuevaDuracion
-        );
 
         /*
-         * Una reserva utilizada con reserva a favor
-         * queda confirmada directamente.
+         * IMPORTANTE:
+         *
+         * Se conserva la duración de la reserva original.
+         *
+         * Ejemplo:
+         *
+         * Reserva original = 2 horas
+         * Reserva a favor  = 2 horas
+         *
+         * El usuario NO puede cambiarla a 4 horas.
+         */
+
+        nuevaReserva.setDuracionHoras(
+                duracionOriginal
+        );
+
+
+        /*
+         * La reserva queda confirmada porque
+         * se está utilizando una reserva a favor.
          */
 
         nuevaReserva.setEstado(
                 "CONFIRMADA"
         );
 
+
+        /*
+         * No se realiza un nuevo pago.
+         */
+
         nuevaReserva.setMontoTotal(
-                montoNuevaReserva
+                0.0
         );
+
 
         nuevaReserva.setFechaCreacion(
                 LocalDateTime.now()
         );
 
+
         nuevaReserva.setUsuario(
-                usuario
+                reservaAFavor.getUsuario()
         );
+
 
         nuevaReserva.setInstalacion(
                 instalacion
@@ -759,82 +723,12 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // CALCULAR TARIFA BASE MÍNIMA
+        // MARCAR RESERVA A FAVOR COMO UTILIZADA
         // ========================================================
 
-        /*
-         * Buscamos la instalación disponible con la
-         * tarifa base más baja.
-         *
-         * Ese valor determina el saldo mínimo que
-         * tiene sentido conservar en una reserva a favor.
-         */
-
-        double tarifaBaseMinima =
-                instalacionRepository
-                        .findAll()
-                        .stream()
-                        .filter(instalacionDisponible ->
-                                "DISPONIBLE".equalsIgnoreCase(
-                                        instalacionDisponible.getEstado()
-                                )
-                        )
-                        .filter(instalacionDisponible ->
-                                instalacionDisponible.getTarifaBase() != null &&
-                                        instalacionDisponible.getTarifaBase() > 0
-                        )
-                        .mapToDouble(
-                                instalacionDisponible ->
-                                        instalacionDisponible.getTarifaBase()
-                        )
-                        .min()
-                        .orElse(0.0);
-
-
-        // ========================================================
-        // ACTUALIZAR RESERVA A FAVOR
-        // ========================================================
-
-        /*
-         * Si el saldo llega a $0 o queda por debajo
-         * de la tarifa base más barata disponible,
-         * se descarta.
-         */
-
-        if (saldoRestante <= 0 ||
-                (
-                        tarifaBaseMinima > 0 &&
-                                saldoRestante < tarifaBaseMinima
-                )) {
-
-            reservaAFavor.setMontoAcreditado(
-                    0.0
-            );
-
-            reservaAFavor.setUtilizada(
-                    true
-            );
-
-        } else {
-
-            /*
-             * El saldo todavía permite realizar al menos
-             * una reserva mínima.
-             */
-
-            reservaAFavor.setMontoAcreditado(
-                    saldoRestante
-            );
-
-            reservaAFavor.setUtilizada(
-                    false
-            );
-        }
-
-
-        // ========================================================
-        // GUARDAR CAMBIO
-        // ========================================================
+        reservaAFavor.setUtilizada(
+                true
+        );
 
         reservaAFavorRepository.save(
                 reservaAFavor
