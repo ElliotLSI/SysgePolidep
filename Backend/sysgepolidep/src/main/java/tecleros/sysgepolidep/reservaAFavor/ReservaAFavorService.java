@@ -1,5 +1,4 @@
-
-        package tecleros.sysgepolidep.reservaAFavor;
+package tecleros.sysgepolidep.reservaAFavor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -9,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import tecleros.sysgepolidep.instalacion.Instalacion;
 import tecleros.sysgepolidep.instalacion.InstalacionRepository;
+import tecleros.sysgepolidep.membresia.Membresia;
+import tecleros.sysgepolidep.membresia.MembresiaRepository;
 import tecleros.sysgepolidep.reserva.Reserva;
 import tecleros.sysgepolidep.reserva.ReservaRepository;
 import tecleros.sysgepolidep.usuario.Usuario;
@@ -35,20 +36,15 @@ public class ReservaAFavorService {
     @Autowired
     private InstalacionRepository instalacionRepository;
 
+    @Autowired
+    private MembresiaRepository membresiaRepository;
+
 
     // ============================================================
     // LISTAR TODAS
     // ============================================================
 
     public List<ReservaAFavor> listarTodas() {
-
-        /*
-         * ADMINISTRADOR y EMPLEADO pueden consultar
-         * todos los créditos.
-         *
-         * Los demás usuarios solamente pueden consultar
-         * sus propios créditos.
-         */
 
         if (esAdministrador() || esEmpleado()) {
             return reservaAFavorRepository.findAll();
@@ -86,19 +82,9 @@ public class ReservaAFavorService {
         ReservaAFavor reservaAFavor =
                 reservaAFavorOpt.get();
 
-        /*
-         * ADMINISTRADOR y EMPLEADO pueden consultar
-         * cualquier crédito.
-         */
-
         if (esAdministrador() || esEmpleado()) {
             return Optional.of(reservaAFavor);
         }
-
-        /*
-         * Usuario normal solamente puede consultar
-         * su propio crédito.
-         */
 
         Usuario usuarioActual =
                 obtenerUsuarioActual();
@@ -138,21 +124,11 @@ public class ReservaAFavorService {
             );
         }
 
-        /*
-         * ADMINISTRADOR y EMPLEADO pueden consultar
-         * créditos de cualquier usuario.
-         */
-
         if (esAdministrador() || esEmpleado()) {
 
             return reservaAFavorRepository
                     .findByUsuarioIdUsuario(idUsuario);
         }
-
-        /*
-         * Usuario normal solamente puede consultar
-         * sus propios créditos.
-         */
 
         Usuario usuarioActual =
                 obtenerUsuarioActual();
@@ -171,7 +147,7 @@ public class ReservaAFavorService {
 
 
     // ============================================================
-    // BUSCAR DISPONIBLES POR USUARIO
+    // BUSCAR RESERVAS A FAVOR DISPONIBLES
     // ============================================================
 
     public List<ReservaAFavor> buscarDisponiblesPorUsuario(
@@ -190,22 +166,21 @@ public class ReservaAFavorService {
         }
 
         /*
-         * ADMINISTRADOR y EMPLEADO pueden consultar
-         * los créditos de cualquier usuario.
+         * Una reserva a favor disponible debe:
+         *
+         * 1. Pertenecer al usuario.
+         * 2. No estar utilizada.
+         * 3. Tener saldo mayor a $0.
          */
 
         if (esAdministrador() || esEmpleado()) {
 
             return reservaAFavorRepository
-                    .findByUsuarioIdUsuarioAndUtilizadaFalse(
-                            idUsuario
+                    .findByUsuarioIdUsuarioAndUtilizadaFalseAndMontoAcreditadoGreaterThan(
+                            idUsuario,
+                            0.0
                     );
         }
-
-        /*
-         * Usuario normal solamente puede consultar
-         * sus propios créditos.
-         */
 
         Usuario usuarioActual =
                 obtenerUsuarioActual();
@@ -219,8 +194,9 @@ public class ReservaAFavorService {
         }
 
         return reservaAFavorRepository
-                .findByUsuarioIdUsuarioAndUtilizadaFalse(
-                        idUsuario
+                .findByUsuarioIdUsuarioAndUtilizadaFalseAndMontoAcreditadoGreaterThan(
+                        idUsuario,
+                        0.0
                 );
     }
 
@@ -232,14 +208,6 @@ public class ReservaAFavorService {
     @Transactional
     public ReservaAFavor crearReservaAFavor(
             ReservaAFavor reservaAFavor) {
-
-        /*
-         * Este método actualmente no debería ser llamado
-         * directamente por un usuario.
-         *
-         * Los créditos se generan automáticamente cuando
-         * se cancela una reserva desde ReservaService.
-         */
 
         if (reservaAFavor == null) {
             throw new IllegalArgumentException(
@@ -275,7 +243,7 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // VERIFICAR ESTADO DE RESERVA DE ORIGEN
+        // VERIFICAR ESTADO
         // ========================================================
 
         if (!"CANCELADA".equals(
@@ -305,13 +273,6 @@ public class ReservaAFavorService {
         // USUARIO
         // ========================================================
 
-        /*
-         * El usuario del crédito debe ser el mismo usuario
-         * propietario de la reserva cancelada.
-         *
-         * No confiamos en un usuario enviado por el cliente.
-         */
-
         Usuario usuario =
                 reservaExistente.getUsuario();
 
@@ -328,43 +289,35 @@ public class ReservaAFavorService {
         // MONTO
         // ========================================================
 
-        /*
-         * El monto sale directamente de la reserva cancelada.
-         * El cliente no puede decidir cuánto crédito generar.
-         */
-
         Double monto =
                 reservaExistente.getMontoTotal();
 
         if (monto == null || monto <= 0) {
 
             throw new IllegalArgumentException(
-                    "La reserva de origen no tiene un monto válido para generar crédito."
+                    "La reserva de origen no tiene un monto válido para generar la reserva a favor."
             );
         }
 
 
         // ========================================================
-        // FECHA DE GENERACIÓN
+        // FECHAS
         // ========================================================
 
         LocalDate fechaGeneracion =
                 LocalDate.now();
-
-
-        // ========================================================
-        // FECHA DE VENCIMIENTO
-        // ========================================================
 
         LocalDate fechaVencimiento =
                 fechaGeneracion.plusMonths(3);
 
 
         // ========================================================
-        // CREAR OBJETO
+        // CREAR RESERVA A FAVOR
         // ========================================================
 
-        reservaAFavor.setMontoAcreditado(monto);
+        reservaAFavor.setMontoAcreditado(
+                monto
+        );
 
         reservaAFavor.setFechaGeneracion(
                 fechaGeneracion
@@ -384,14 +337,13 @@ public class ReservaAFavorService {
                 usuario
         );
 
-
         return reservaAFavorRepository
                 .save(reservaAFavor);
     }
 
 
     // ============================================================
-    // REPROGRAMAR RESERVA
+    // UTILIZAR RESERVA A FAVOR
     // ============================================================
 
     @Transactional
@@ -445,14 +397,6 @@ public class ReservaAFavorService {
                                         usuarioActual.getIdUsuario()
                                 );
 
-        /*
-         * Un usuario normal solamente puede utilizar
-         * su propio crédito.
-         *
-         * ADMINISTRADOR y EMPLEADO pueden realizar
-         * operaciones administrativas.
-         */
-
         if (!esAdministrador() &&
                 !esEmpleado() &&
                 !esPropietario) {
@@ -493,6 +437,22 @@ public class ReservaAFavorService {
 
             throw new IllegalArgumentException(
                     "La reserva a favor se encuentra vencida."
+            );
+        }
+
+
+        // ========================================================
+        // VALIDAR SALDO
+        // ========================================================
+
+        Double saldoDisponible =
+                reservaAFavor.getMontoAcreditado();
+
+        if (saldoDisponible == null ||
+                saldoDisponible <= 0) {
+
+            throw new IllegalArgumentException(
+                    "La reserva a favor no tiene saldo disponible."
             );
         }
 
@@ -553,7 +513,9 @@ public class ReservaAFavorService {
         // ========================================================
 
         LocalTime nuevaFin =
-                nuevaHora.plusHours(nuevaDuracion);
+                nuevaHora.plusHours(
+                        nuevaDuracion
+                );
 
         if (!nuevaFin.isAfter(nuevaHora)) {
 
@@ -585,7 +547,7 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // VERIFICAR ESTADO DE INSTALACIÓN
+        // VERIFICAR ESTADO
         // ========================================================
 
         if (!"DISPONIBLE".equalsIgnoreCase(
@@ -643,18 +605,102 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // OBTENER USUARIO DEL CRÉDITO
+        // CALCULAR PRECIO
+        // ========================================================
+
+        if (instalacion.getTarifaBase() == null ||
+                instalacion.getTarifaBase() < 0) {
+
+            throw new IllegalArgumentException(
+                    "La tarifa base de la instalación no es válida."
+            );
+        }
+
+        double montoBase =
+                instalacion.getTarifaBase()
+                        * nuevaDuracion;
+
+        double descuento = 0.0;
+
+
+        // ========================================================
+        // BUSCAR MEMBRESÍA VIGENTE
         // ========================================================
 
         Usuario usuario =
                 reservaAFavor.getUsuario();
 
-        if (usuario == null) {
+        List<Membresia> membresiasVigentes =
+                membresiaRepository
+                        .findBySocioIdUsuarioAndEstado(
+                                usuario.getIdUsuario(),
+                                "VIGENTE"
+                        );
+
+        if (!membresiasVigentes.isEmpty()) {
+
+            Membresia membresia =
+                    membresiasVigentes.get(0);
+
+            if (membresia.getCategoria() != null &&
+                    membresia.getCategoria()
+                            .getPorcDescuento() != null) {
+
+                descuento =
+                        membresia.getCategoria()
+                                .getPorcDescuento();
+            }
+        }
+
+
+        // ========================================================
+        // CALCULAR MONTO DE NUEVA RESERVA
+        // ========================================================
+
+        double montoNuevaReserva =
+                montoBase -
+                        (montoBase * descuento / 100.0);
+
+        if (montoNuevaReserva < 0) {
+            montoNuevaReserva = 0;
+        }
+
+
+        // ========================================================
+        // VERIFICAR SI EL SALDO ALCANZA
+        // ========================================================
+
+        if (saldoDisponible < montoNuevaReserva) {
 
             throw new IllegalArgumentException(
-                    "La reserva a favor no tiene un usuario asociado."
+                    "La reserva a favor no tiene saldo suficiente. "
+                            + "Saldo disponible: $"
+                            + String.format(
+                            "%.2f",
+                            saldoDisponible
+                    )
+                            + ". Monto de la nueva reserva: $"
+                            + String.format(
+                            "%.2f",
+                            montoNuevaReserva
+                    )
+                            + "."
             );
         }
+
+
+        // ========================================================
+        // CALCULAR SALDO RESTANTE
+        // ========================================================
+
+        double saldoRestante =
+                saldoDisponible -
+                        montoNuevaReserva;
+
+        saldoRestante =
+                Math.round(
+                        saldoRestante * 100.0
+                ) / 100.0;
 
 
         // ========================================================
@@ -677,22 +723,16 @@ public class ReservaAFavorService {
         );
 
         /*
-         * El crédito ya representa dinero previamente
-         * acreditado, por eso la nueva reserva queda
-         * confirmada.
+         * Una reserva utilizada con reserva a favor
+         * queda confirmada directamente.
          */
 
         nuevaReserva.setEstado(
                 "CONFIRMADA"
         );
 
-        /*
-         * El monto utilizado sale del crédito.
-         * No se recibe desde el cliente.
-         */
-
         nuevaReserva.setMontoTotal(
-                reservaAFavor.getMontoAcreditado()
+                montoNuevaReserva
         );
 
         nuevaReserva.setFechaCreacion(
@@ -719,10 +759,82 @@ public class ReservaAFavorService {
 
 
         // ========================================================
-        // MARCAR CRÉDITO COMO UTILIZADO
+        // CALCULAR TARIFA BASE MÍNIMA
         // ========================================================
 
-        reservaAFavor.setUtilizada(true);
+        /*
+         * Buscamos la instalación disponible con la
+         * tarifa base más baja.
+         *
+         * Ese valor determina el saldo mínimo que
+         * tiene sentido conservar en una reserva a favor.
+         */
+
+        double tarifaBaseMinima =
+                instalacionRepository
+                        .findAll()
+                        .stream()
+                        .filter(instalacionDisponible ->
+                                "DISPONIBLE".equalsIgnoreCase(
+                                        instalacionDisponible.getEstado()
+                                )
+                        )
+                        .filter(instalacionDisponible ->
+                                instalacionDisponible.getTarifaBase() != null &&
+                                        instalacionDisponible.getTarifaBase() > 0
+                        )
+                        .mapToDouble(
+                                instalacionDisponible ->
+                                        instalacionDisponible.getTarifaBase()
+                        )
+                        .min()
+                        .orElse(0.0);
+
+
+        // ========================================================
+        // ACTUALIZAR RESERVA A FAVOR
+        // ========================================================
+
+        /*
+         * Si el saldo llega a $0 o queda por debajo
+         * de la tarifa base más barata disponible,
+         * se descarta.
+         */
+
+        if (saldoRestante <= 0 ||
+                (
+                        tarifaBaseMinima > 0 &&
+                                saldoRestante < tarifaBaseMinima
+                )) {
+
+            reservaAFavor.setMontoAcreditado(
+                    0.0
+            );
+
+            reservaAFavor.setUtilizada(
+                    true
+            );
+
+        } else {
+
+            /*
+             * El saldo todavía permite realizar al menos
+             * una reserva mínima.
+             */
+
+            reservaAFavor.setMontoAcreditado(
+                    saldoRestante
+            );
+
+            reservaAFavor.setUtilizada(
+                    false
+            );
+        }
+
+
+        // ========================================================
+        // GUARDAR CAMBIO
+        // ========================================================
 
         reservaAFavorRepository.save(
                 reservaAFavor
@@ -739,12 +851,6 @@ public class ReservaAFavorService {
 
     @Transactional
     public void marcarComoUtilizada(Long id) {
-
-        /*
-         * Este método es administrativo/interno.
-         * Los usuarios normales no deberían poder
-         * marcar créditos manualmente como utilizados.
-         */
 
         if (!esAdministrador() && !esEmpleado()) {
 
@@ -805,11 +911,6 @@ public class ReservaAFavorService {
     @Transactional
     public void eliminarReservaAFavor(Long id) {
 
-        /*
-         * No permitimos que un usuario normal elimine
-         * créditos.
-         */
-
         if (!esAdministrador()) {
 
             throw new IllegalArgumentException(
@@ -863,7 +964,9 @@ public class ReservaAFavorService {
 
 
         return usuarioRepository
-                .findByNombreUsuario(nombreUsuario)
+                .findByNombreUsuario(
+                        nombreUsuario
+                )
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "El usuario autenticado no existe."
@@ -925,4 +1028,3 @@ public class ReservaAFavorService {
                 );
     }
 }
-
