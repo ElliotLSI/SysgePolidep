@@ -26,33 +26,71 @@ function Usuarios() {
         estado: "ACTIVO"
     })
 
+    // ==========================================================
+    // FECHA ACTUAL
+    // ==========================================================
+
+    const obtenerFechaActual = () => {
+
+        const hoy = new Date()
+
+        const año = hoy.getFullYear()
+
+        const mes = String(
+            hoy.getMonth() + 1
+        ).padStart(2, "0")
+
+        const dia = String(
+            hoy.getDate()
+        ).padStart(2, "0")
+
+        return `${año}-${mes}-${dia}`
+    }
+
+    const fechaMaximaNacimiento =
+        obtenerFechaActual()
+
+
+    // ==========================================================
+    // OBTENER USUARIOS
+    // ==========================================================
+
     const obtenerUsuarios = async () => {
 
         try {
 
-            const token = sessionStorage.getItem("token")
+            const token =
+                sessionStorage.getItem("token")
 
             const respuesta = await fetch(
                 "http://localhost:8080/api/usuarios",
                 {
                     method: "GET",
                     headers: {
-                        "Authorization": `Bearer ${token}`
+                        "Authorization":
+                            `Bearer ${token}`
                     }
                 }
             )
 
             if (!respuesta.ok) {
-                throw new Error("No se pudieron obtener los usuarios")
+                throw new Error(
+                    "No se pudieron obtener los usuarios"
+                )
             }
 
-            const datos = await respuesta.json()
+            const datos =
+                await respuesta.json()
 
             setUsuarios(datos)
 
         } catch (error) {
 
-            console.error("Error al obtener usuarios:", error)
+            console.error(
+                "Error al obtener usuarios:",
+                error
+            )
+
             setError(error.message)
 
         } finally {
@@ -62,13 +100,22 @@ function Usuarios() {
         }
     }
 
+
     useEffect(() => {
         obtenerUsuarios()
     }, [])
 
+
+    // ==========================================================
+    // MANEJAR CAMBIOS
+    // ==========================================================
+
     const manejarCambio = (e) => {
 
-        const { name, value } = e.target
+        const {
+            name,
+            value
+        } = e.target
 
         setNuevoUsuario({
             ...nuevoUsuario,
@@ -76,38 +123,96 @@ function Usuarios() {
         })
     }
 
+
+    // ==========================================================
+    // EDITAR USUARIO
+    // ==========================================================
+
     const editarUsuario = (usuario) => {
 
         setUsuarioEditando(usuario)
 
         setNuevoUsuario({
-            nombre: usuario.nombre || "",
-            apellido: usuario.apellido || "",
-            dni: usuario.dni || "",
-            fechaNacimiento: usuario.fechaNacimiento || "",
-            domicilio: usuario.domicilio || "",
-            telefono: usuario.telefono || "",
-            email: usuario.email || "",
-            nombreUsuario: usuario.nombreUsuario || "",
-            password: "",
-            pertenencia: usuario.pertenencia || "NINGUNO",
-            legajo: usuario.legajo || "",
-            estado: usuario.estado || "ACTIVO"
+            nombre:
+                usuario.nombre || "",
+
+            apellido:
+                usuario.apellido || "",
+
+            dni:
+                usuario.dni || "",
+
+            fechaNacimiento:
+                usuario.fechaNacimiento || "",
+
+            domicilio:
+                usuario.domicilio || "",
+
+            telefono:
+                usuario.telefono || "",
+
+            email:
+                usuario.email || "",
+
+            nombreUsuario:
+                usuario.nombreUsuario || "",
+
+            password:
+                "",
+
+            pertenencia:
+                usuario.pertenencia || "NINGUNO",
+
+            legajo:
+                usuario.legajo || "",
+
+            estado:
+                usuario.estado || "ACTIVO"
         })
 
         setModoEdicion(true)
         setMostrarFormulario(true)
     }
 
+
+    // ==========================================================
+    // GUARDAR USUARIO
+    // ==========================================================
+
     const guardarUsuario = async (e) => {
 
         e.preventDefault()
 
+
+        // ------------------------------------------------------
+        // VALIDAR FECHA DE NACIMIENTO
+        // ------------------------------------------------------
+
+        if (
+            nuevoUsuario.fechaNacimiento &&
+            nuevoUsuario.fechaNacimiento >
+            fechaMaximaNacimiento
+        ) {
+
+            alert(
+                "La fecha de nacimiento no puede ser posterior a la fecha actual."
+            )
+
+            return
+        }
+
+
         try {
 
-            const token = sessionStorage.getItem("token")
+            const token =
+                sessionStorage.getItem("token")
 
             let respuesta
+
+
+            // --------------------------------------------------
+            // ACTUALIZAR
+            // --------------------------------------------------
 
             if (modoEdicion) {
 
@@ -115,44 +220,85 @@ function Usuarios() {
                     `http://localhost:8080/api/usuarios/${usuarioEditando.idUsuario}`,
                     {
                         method: "PUT",
+
                         headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${token}`
+                            "Content-Type":
+                                "application/json",
+
+                            "Authorization":
+                                `Bearer ${token}`
                         },
-                        body: JSON.stringify(nuevoUsuario)
+
+                        body:
+                            JSON.stringify(
+                                nuevoUsuario
+                            )
                     }
                 )
 
-            } else {
+            }
+
+                // --------------------------------------------------
+                // CREAR
+            // --------------------------------------------------
+
+            else {
 
                 respuesta = await fetch(
                     "http://localhost:8080/api/usuarios",
                     {
                         method: "POST",
+
                         headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${token}`
+                            "Content-Type":
+                                "application/json",
+
+                            "Authorization":
+                                `Bearer ${token}`
                         },
-                        body: JSON.stringify(nuevoUsuario)
+
+                        body:
+                            JSON.stringify(
+                                nuevoUsuario
+                            )
                     }
                 )
             }
 
+
+            // --------------------------------------------------
+            // ERROR
+            // --------------------------------------------------
+
             if (!respuesta.ok) {
 
-                const mensaje = await respuesta.text()
+                const mensaje =
+                    await respuesta.text()
 
                 throw new Error(
-                    mensaje || "No se pudo guardar el usuario"
+                    mensaje ||
+                    "No se pudo guardar el usuario"
                 )
             }
 
-            const datos = await respuesta.json()
 
-            console.log("Usuario guardado:", datos)
+            const datos =
+                await respuesta.json()
+
+            console.log(
+                "Usuario guardado:",
+                datos
+            )
+
+
+            // --------------------------------------------------
+            // LIMPIAR FORMULARIO
+            // --------------------------------------------------
 
             setMostrarFormulario(false)
+
             setModoEdicion(false)
+
             setUsuarioEditando(null)
 
             setNuevoUsuario({
@@ -170,27 +316,46 @@ function Usuarios() {
                 estado: "ACTIVO"
             })
 
+
             await obtenerUsuarios()
 
+
             if (modoEdicion) {
-                alert("Usuario actualizado correctamente")
+
+                alert(
+                    "Usuario actualizado correctamente"
+                )
+
             } else {
-                alert("Usuario creado correctamente")
+
+                alert(
+                    "Usuario creado correctamente"
+                )
             }
+
 
         } catch (error) {
 
-            console.error("Error al guardar usuario:", error)
+            console.error(
+                "Error al guardar usuario:",
+                error
+            )
 
             alert(error.message)
-
         }
     }
+
+
+    // ==========================================================
+    // CANCELAR FORMULARIO
+    // ==========================================================
 
     const cancelarFormulario = () => {
 
         setMostrarFormulario(false)
+
         setModoEdicion(false)
+
         setUsuarioEditando(null)
 
         setNuevoUsuario({
@@ -209,9 +374,15 @@ function Usuarios() {
         })
     }
 
+
+    // ==========================================================
+    // NUEVO USUARIO
+    // ==========================================================
+
     const nuevoUsuarioFormulario = () => {
 
         setModoEdicion(false)
+
         setUsuarioEditando(null)
 
         setNuevoUsuario({
@@ -232,205 +403,407 @@ function Usuarios() {
         setMostrarFormulario(true)
     }
 
+
+    // ==========================================================
+    // ELIMINAR USUARIO
+    // ==========================================================
+
     const eliminarUsuario = async (id) => {
 
-        const confirmar = window.confirm(
-            "¿Estás seguro de que querés eliminar este usuario?"
-        )
+        const confirmar =
+            window.confirm(
+                "¿Estás seguro de que querés eliminar este usuario?"
+            )
 
         if (!confirmar) {
             return
         }
 
+
         try {
 
-            const token = sessionStorage.getItem("token")
+            const token =
+                sessionStorage.getItem("token")
 
             const respuesta = await fetch(
                 `http://localhost:8080/api/usuarios/${id}`,
                 {
                     method: "DELETE",
+
                     headers: {
-                        "Authorization": `Bearer ${token}`
+                        "Authorization":
+                            `Bearer ${token}`
                     }
                 }
             )
 
+
             if (!respuesta.ok) {
-                throw new Error("No se pudo eliminar el usuario")
+
+                throw new Error(
+                    "No se pudo eliminar el usuario"
+                )
             }
+
 
             await obtenerUsuarios()
 
-            alert("Usuario eliminado correctamente")
+            alert(
+                "Usuario eliminado correctamente"
+            )
+
 
         } catch (error) {
 
-            console.error("Error al eliminar usuario:", error)
+            console.error(
+                "Error al eliminar usuario:",
+                error
+            )
 
             alert(error.message)
-
         }
     }
 
+
+    // ==========================================================
+    // CARGANDO
+    // ==========================================================
+
     if (cargando) {
-        return <p>Cargando usuarios...</p>
+
+        return (
+            <p>
+                Cargando usuarios...
+            </p>
+        )
     }
+
+
+    // ==========================================================
+    // ERROR
+    // ==========================================================
 
     if (error) {
-        return <p className="error-message">{error}</p>
+
+        return (
+            <p className="error-message">
+                {error}
+            </p>
+        )
     }
 
+
+    // ==========================================================
+    // VISTA
+    // ==========================================================
+
     return (
+
         <section className="usuarios">
+
+
+            {/* ==================================================
+                TÍTULO
+            ================================================== */}
 
             <div className="seccion-titulo">
 
                 <div>
-                    <h2>Usuarios</h2>
+
+                    <h2>
+                        Usuarios
+                    </h2>
 
                     <p>
                         Usuarios registrados en el sistema.
                     </p>
+
                 </div>
+
 
                 <button
                     className="boton-principal"
-                    onClick={nuevoUsuarioFormulario}
+                    onClick={
+                        nuevoUsuarioFormulario
+                    }
                 >
                     Nuevo usuario
                 </button>
 
             </div>
 
+
+            {/* ==================================================
+                FORMULARIO
+            ================================================== */}
+
             {mostrarFormulario && (
 
                 <div className="formulario-usuario">
 
                     <h3>
+
                         {modoEdicion
                             ? "Editar usuario"
                             : "Nuevo usuario"
                         }
+
                     </h3>
+
 
                     <div className="formulario-grid">
 
+
+                        {/* ================================
+                            NOMBRE
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Nombre</label>
+
+                            <label>
+                                Nombre
+                            </label>
 
                             <input
                                 type="text"
                                 name="nombre"
-                                value={nuevoUsuario.nombre}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.nombre
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            APELLIDO
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Apellido</label>
+
+                            <label>
+                                Apellido
+                            </label>
 
                             <input
                                 type="text"
                                 name="apellido"
-                                value={nuevoUsuario.apellido}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.apellido
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            DNI
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>DNI</label>
+
+                            <label>
+                                DNI
+                            </label>
 
                             <input
                                 type="text"
                                 name="dni"
-                                value={nuevoUsuario.dni}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.dni
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            FECHA DE NACIMIENTO
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Fecha de nacimiento</label>
+
+                            <label>
+                                Fecha de nacimiento
+                            </label>
 
                             <input
                                 type="date"
                                 name="fechaNacimiento"
-                                value={nuevoUsuario.fechaNacimiento}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.fechaNacimiento
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
+                                max={
+                                    fechaMaximaNacimiento
+                                }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            DOMICILIO
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Domicilio</label>
+
+                            <label>
+                                Domicilio
+                            </label>
 
                             <input
                                 type="text"
                                 name="domicilio"
-                                value={nuevoUsuario.domicilio}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.domicilio
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            TELÉFONO
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Teléfono</label>
+
+                            <label>
+                                Teléfono
+                            </label>
 
                             <input
                                 type="text"
                                 name="telefono"
-                                value={nuevoUsuario.telefono}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.telefono
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            EMAIL
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Email</label>
+
+                            <label>
+                                Email
+                            </label>
 
                             <input
                                 type="email"
                                 name="email"
-                                value={nuevoUsuario.email}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.email
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            NOMBRE DE USUARIO
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Nombre de usuario</label>
+
+                            <label>
+                                Nombre de usuario
+                            </label>
 
                             <input
                                 type="text"
                                 name="nombreUsuario"
-                                value={nuevoUsuario.nombreUsuario}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.nombreUsuario
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            CONTRASEÑA
+                        ================================= */}
+
                         <div className="form-group">
+
                             <label>
+
                                 Contraseña
-                                {modoEdicion && " (opcional)"}
+
+                                {modoEdicion &&
+                                    " (opcional)"
+                                }
+
                             </label>
 
                             <input
                                 type="password"
                                 name="password"
-                                value={nuevoUsuario.password}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.password
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                                 placeholder={
                                     modoEdicion
                                         ? "Dejar vacío para mantenerla"
                                         : "Ingrese una contraseña"
                                 }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            PERTENENCIA
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Pertenencia</label>
+
+                            <label>
+                                Pertenencia
+                            </label>
 
                             <select
                                 name="pertenencia"
-                                value={nuevoUsuario.pertenencia}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.pertenencia
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             >
+
                                 <option value="NINGUNO">
                                     Ninguno
                                 </option>
@@ -446,28 +819,56 @@ function Usuarios() {
                                 <option value="ADMINISTRATIVO">
                                     Administrativo
                                 </option>
+
                             </select>
+
                         </div>
 
+
+                        {/* ================================
+                            LEGAJO
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Legajo</label>
+
+                            <label>
+                                Legajo
+                            </label>
 
                             <input
                                 type="text"
                                 name="legajo"
-                                value={nuevoUsuario.legajo}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.legajo
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             />
+
                         </div>
 
+
+                        {/* ================================
+                            ESTADO
+                        ================================= */}
+
                         <div className="form-group">
-                            <label>Estado</label>
+
+                            <label>
+                                Estado
+                            </label>
 
                             <select
                                 name="estado"
-                                value={nuevoUsuario.estado}
-                                onChange={manejarCambio}
+                                value={
+                                    nuevoUsuario.estado
+                                }
+                                onChange={
+                                    manejarCambio
+                                }
                             >
+
                                 <option value="ACTIVO">
                                     Activo
                                 </option>
@@ -475,25 +876,37 @@ function Usuarios() {
                                 <option value="INACTIVO">
                                     Inactivo
                                 </option>
+
                             </select>
+
                         </div>
 
                     </div>
+
+
+                    {/* ==================================================
+                        BOTONES
+                    ================================================== */}
 
                     <div className="formulario-botones">
 
                         <button
                             type="button"
                             className="boton-secundario"
-                            onClick={cancelarFormulario}
+                            onClick={
+                                cancelarFormulario
+                            }
                         >
                             Cancelar
                         </button>
 
+
                         <button
                             type="button"
                             className="boton-principal"
-                            onClick={guardarUsuario}
+                            onClick={
+                                guardarUsuario
+                            }
                         >
                             {modoEdicion
                                 ? "Guardar cambios"
@@ -507,71 +920,130 @@ function Usuarios() {
 
             )}
 
+
+            {/* ==================================================
+                TABLA
+            ================================================== */}
+
             <div className="tabla-contenedor">
 
                 <table>
 
                     <thead>
 
-                        <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Apellido</th>
-                            <th>Usuario</th>
-                            <th>Email</th>
-                            <th>Pertenencia</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
+                    <tr>
+
+                        <th>
+                            ID
+                        </th>
+
+                        <th>
+                            Nombre
+                        </th>
+
+                        <th>
+                            Apellido
+                        </th>
+
+                        <th>
+                            Usuario
+                        </th>
+
+                        <th>
+                            Email
+                        </th>
+
+                        <th>
+                            Pertenencia
+                        </th>
+
+                        <th>
+                            Estado
+                        </th>
+
+                        <th>
+                            Acciones
+                        </th>
+
+                    </tr>
 
                     </thead>
 
+
                     <tbody>
 
-                        {usuarios.map((usuario) => (
+                    {usuarios.map(
+                        (usuario) => (
 
-                            <tr key={usuario.idUsuario}>
+                            <tr
+                                key={
+                                    usuario.idUsuario
+                                }
+                            >
 
                                 <td>
-                                    {usuario.idUsuario}
+                                    {
+                                        usuario.idUsuario
+                                    }
                                 </td>
 
                                 <td>
-                                    {usuario.nombre}
+                                    {
+                                        usuario.nombre
+                                    }
                                 </td>
 
                                 <td>
-                                    {usuario.apellido}
+                                    {
+                                        usuario.apellido
+                                    }
                                 </td>
 
                                 <td>
-                                    {usuario.nombreUsuario}
+                                    {
+                                        usuario.nombreUsuario
+                                    }
                                 </td>
 
                                 <td>
-                                    {usuario.email}
+                                    {
+                                        usuario.email
+                                    }
                                 </td>
 
                                 <td>
-                                    {usuario.pertenencia}
+                                    {
+                                        usuario.pertenencia
+                                    }
                                 </td>
 
                                 <td>
-                                    {usuario.estado}
+                                    {
+                                        usuario.estado
+                                    }
                                 </td>
 
                                 <td>
 
                                     <button
                                         className="boton-editar"
-                                        onClick={() => editarUsuario(usuario)}
+                                        onClick={() =>
+                                            editarUsuario(
+                                                usuario
+                                            )
+                                        }
                                     >
                                         Editar
                                     </button>
 
+
                                     <button
                                         className="boton-eliminar"
-                                        onClick={() => eliminarUsuario(usuario.idUsuario)}
+                                        onClick={() =>
+                                            eliminarUsuario(
+                                                usuario.idUsuario
+                                            )
+                                        }
                                     >
                                         Eliminar
                                     </button>
@@ -580,7 +1052,8 @@ function Usuarios() {
 
                             </tr>
 
-                        ))}
+                        )
+                    )}
 
                     </tbody>
 
