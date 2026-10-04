@@ -112,7 +112,7 @@ function Reservas() {
 
 
             // =====================================================
-            // CARGAR RESERVAS A FAVOR DEL SOCIO
+            // RESERVAS A FAVOR
             // =====================================================
 
             if (
@@ -132,9 +132,7 @@ function Reservas() {
                     )
 
 
-                if (
-                    respuestaReservasAFavor.ok
-                ) {
+                if (respuestaReservasAFavor.ok) {
 
                     const datosReservasAFavor =
                         await respuestaReservasAFavor.json()
@@ -236,14 +234,10 @@ function Reservas() {
                     ? value
                     : nuevaReserva.idInstalacion
 
-
             const duracion =
                 name === "duracionHoras"
                     ? Number(value)
-                    : Number(
-                        nuevaReserva.duracionHoras
-                    )
-
+                    : Number(nuevaReserva.duracionHoras)
 
             const instalacion =
                 instalaciones.find(
@@ -322,7 +316,6 @@ function Reservas() {
 
                 estado:
                     "PENDIENTE"
-
             }
 
 
@@ -449,7 +442,7 @@ function Reservas() {
 
 
             setMensaje(
-                "La reserva fue cancelada correctamente. Si correspondía, se generó una reserva a favor."
+                "La reserva fue cancelada correctamente. Se generó una reserva a favor con el monto correspondiente."
             )
 
 
@@ -549,7 +542,6 @@ function Reservas() {
 
                     instalacion:
                     nuevaReservaAFavor.idInstalacion
-
                 })
 
 
@@ -581,7 +573,7 @@ function Reservas() {
 
 
             setMensaje(
-                "La reserva a favor fue utilizada correctamente y se creó la nueva reserva."
+                "La reserva fue realizada utilizando la reserva a favor."
             )
 
 
@@ -601,6 +593,9 @@ function Reservas() {
             })
 
 
+            // IMPORTANTE:
+            // vuelve a consultar el backend para obtener
+            // el saldo actualizado de la reserva a favor.
             await cargarDatos()
 
         } catch (error) {
@@ -673,7 +668,7 @@ function Reservas() {
 
 
     // =========================================================
-    // INSTALACIÓN SELECCIONADA PARA RESERVA A FAVOR
+    // INSTALACIÓN RESERVA A FAVOR
     // =========================================================
 
     const instalacionReservaAFavor =
@@ -684,6 +679,25 @@ function Reservas() {
                     nuevaReservaAFavor.idInstalacion
                 )
         )
+
+
+    // =========================================================
+    // FORMATEAR DINERO
+    // =========================================================
+
+    const formatearMonto = (monto) => {
+
+        const numero =
+            Number(monto ?? 0)
+
+        return numero.toLocaleString(
+            "es-AR",
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }
+        )
+    }
 
 
     return (
@@ -783,11 +797,13 @@ function Reservas() {
 
                                         <p>
                                             <strong>
-                                                Monto:
+                                                Saldo disponible:
                                             </strong>{" "}
                                             $
                                             {
-                                                reservaAFavor.montoAcreditado
+                                                formatearMonto(
+                                                    reservaAFavor.montoAcreditado
+                                                )
                                             }
                                         </p>
 
@@ -824,14 +840,12 @@ function Reservas() {
                                         </button>
 
                                     </div>
-
                                 )
                             )}
 
                         </div>
 
                     </section>
-
                 )}
 
 
@@ -909,7 +923,6 @@ function Reservas() {
                                                 }
 
                                             </option>
-
                                         )
                                     )}
 
@@ -966,7 +979,6 @@ function Reservas() {
                                                 }
 
                                             </option>
-
                                         )
                                     )}
 
@@ -979,7 +991,9 @@ function Reservas() {
 
                                     Tarifa: $
                                     {
-                                        instalacionSeleccionada.tarifaBase
+                                        formatearMonto(
+                                            instalacionSeleccionada.tarifaBase
+                                        )
                                     }{" "}
                                     por hora
 
@@ -1131,7 +1145,9 @@ function Reservas() {
 
                             $
                             {
-                                reservaAFavorSeleccionada?.montoAcreditado
+                                formatearMonto(
+                                    reservaAFavorSeleccionada?.montoAcreditado
+                                )
                             }
 
                         </strong>
@@ -1187,7 +1203,6 @@ function Reservas() {
                                                 }
 
                                             </option>
-
                                         )
                                     )}
 
@@ -1200,7 +1215,9 @@ function Reservas() {
 
                                     Tarifa: $
                                     {
-                                        instalacionReservaAFavor.tarifaBase
+                                        formatearMonto(
+                                            instalacionReservaAFavor.tarifaBase
+                                        )
                                     }{" "}
                                     por hora
 
@@ -1407,7 +1424,9 @@ function Reservas() {
 
                                     $
                                     {
-                                        reserva.montoTotal
+                                        formatearMonto(
+                                            reserva.montoTotal
+                                        )
                                     }
 
                                 </td>
@@ -1443,7 +1462,6 @@ function Reservas() {
                                 </td>
 
                             </tr>
-
                         )
                     )}
 
