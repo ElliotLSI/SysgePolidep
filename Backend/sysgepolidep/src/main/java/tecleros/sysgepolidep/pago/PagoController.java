@@ -36,4 +36,12 @@ public class PagoController {
     public void eliminarPago(@PathVariable Long id) {
         pagoService.eliminarPago(id);
     }
+
+    @PutMapping("/{id}/estado")
+    public Pago cambiarEstadoPago(
+            @PathVariable Long id,
+            @RequestParam String estado
+    ) {
+        return pagoService.cambiarEstadoPago(id, estado);
+    }
 }

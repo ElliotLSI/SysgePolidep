@@ -9,58 +9,31 @@ function Login() {
 
   const manejarLogin = async (e) => {
     e.preventDefault()
-
     setError("")
     setCargando(true)
 
     try {
-      const respuesta = await fetch(
-          "http://localhost:8080/api/auth/login",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              nombreUsuario: usuario,
-              password: contrasena
-            })
-          }
-      )
+      const respuesta = await fetch("http://localhost:8080/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombreUsuario: usuario,
+          password: contrasena
+        })
+      })
 
       const datos = await respuesta.json()
 
       if (!respuesta.ok) {
-        throw new Error(
-            datos.message ||
-            datos.mensaje ||
-            "Error al iniciar sesión"
-        )
+        throw new Error(datos.message || datos.mensaje || "Credenciales incorrectas.")
       }
 
       sessionStorage.setItem("token", datos.token)
-      sessionStorage.setItem(
-          "usuario",
-          JSON.stringify(datos)
-      )
-
-      console.log("Inicio de sesión exitoso")
-
-      alert(`¡Bienvenido, ${datos.nombre}!`)
-
+      sessionStorage.setItem("usuario", JSON.stringify(datos))
       window.location.reload()
-
-    } catch (error) {
-      console.error(
-          "Error al iniciar sesión:",
-          error
-      )
-
-      setError(
-          error.message ||
-          "No se pudo conectar con el servidor"
-      )
-
+    } catch (err) {
+      console.error("Error al iniciar sesión:", err)
+      setError(err.message || "No se pudo conectar con el servidor.")
     } finally {
       setCargando(false)
     }
@@ -68,80 +41,45 @@ function Login() {
 
   return (
       <div className="login-container">
-
         <div className="login-card">
-
-          <img
-              src={logo}
-              alt="SysGe PoliDep"
-              className="login-logo"
-          />
-
+          <img src={logo} alt="SysGe PoliDep" className="login-logo" />
           <h1>SysGe PoliDep</h1>
-
-          <p>Iniciar sesión</p>
+          <p>Ingresá con tu cuenta para continuar</p>
 
           <form onSubmit={manejarLogin}>
-
             <div className="form-group">
-
-              <label htmlFor="usuario">
-                Usuario
-              </label>
-
+              <label htmlFor="usuario">Usuario</label>
               <input
                   id="usuario"
                   type="text"
                   placeholder="Ingrese su usuario"
                   value={usuario}
-                  onChange={(e) =>
-                      setUsuario(e.target.value)
-                  }
+                  onChange={(e) => setUsuario(e.target.value)}
                   required
                   autoComplete="username"
               />
-
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="contrasena">
-                Contraseña
-              </label>
-
+              <label htmlFor="contrasena">Contraseña</label>
               <input
                   id="contrasena"
                   type="password"
                   placeholder="Ingrese su contraseña"
                   value={contrasena}
-                  onChange={(e) =>
-                      setContrasena(e.target.value)
-                  }
+                  onChange={(e) => setContrasena(e.target.value)}
                   required
                   autoComplete="current-password"
               />
-
             </div>
 
-            {error && (
-                <p className="error-message">
-                  {error}
-                </p>
-            )}
+            {error && <p className="error-message">{error}</p>}
 
-            <button
-                type="submit"
-                disabled={cargando}
-            >
-              {cargando
-                  ? "Ingresando..."
-                  : "Ingresar"}
+            <button type="submit" disabled={cargando}>
+              {cargando ? "Ingresando..." : "Ingresar"}
             </button>
-
           </form>
-
         </div>
-
       </div>
   )
 }

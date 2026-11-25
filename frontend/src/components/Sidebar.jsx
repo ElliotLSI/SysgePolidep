@@ -30,7 +30,8 @@ function Sidebar({
             nombre: "Membresías",
             roles: [
                 "ADMINISTRADOR",
-                "EMPLEADO"
+                "EMPLEADO",
+                "USUARIO"
             ]
         },
         {
@@ -47,7 +48,8 @@ function Sidebar({
             roles: [
                 "ADMINISTRADOR",
                 "EMPLEADO",
-                "SOCIO"
+                "SOCIO",
+                "USUARIO"
             ]
         },
         {
@@ -55,7 +57,8 @@ function Sidebar({
             nombre: "Pagos",
             roles: [
                 "ADMINISTRADOR",
-                "SOCIO"
+                "SOCIO",
+                "USUARIO"
             ]
         },
         {

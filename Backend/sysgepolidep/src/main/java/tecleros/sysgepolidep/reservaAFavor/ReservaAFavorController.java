@@ -122,4 +122,13 @@ public class ReservaAFavorController {
                 hora
         );
     }
+    @PutMapping("/reprogramacion/{idReserva}/aprobar")
+    public Reserva aprobarReprogramacion(@PathVariable Long idReserva) {
+        return reservaAFavorService.aprobarReprogramacion(idReserva);
+    }
+
+    @PutMapping("/reprogramacion/{idReserva}/rechazar")
+    public Reserva rechazarReprogramacion(@PathVariable Long idReserva) {
+        return reservaAFavorService.rechazarReprogramacion(idReserva);
+    }
 }

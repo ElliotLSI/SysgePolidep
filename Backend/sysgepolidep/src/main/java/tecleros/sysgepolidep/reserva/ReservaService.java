@@ -18,11 +18,15 @@ import tecleros.sysgepolidep.usuario.UsuarioRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 public class ReservaService {
+
+    private static final LocalTime HORA_APERTURA = LocalTime.of(10, 0);
+    private static final LocalTime HORA_CIERRE = LocalTime.of(3, 0);
 
     @Autowired
     private ReservaRepository reservaRepository;
@@ -45,15 +49,12 @@ public class ReservaService {
     // ============================================================
 
     public List<Reserva> listarTodas() {
-
         Usuario usuarioActual = obtenerUsuarioActual();
 
-        // ADMINISTRADOR y EMPLEADO pueden consultar todas
         if (esAdministrador() || esEmpleado()) {
             return reservaRepository.findAll();
         }
 
-        // Usuario normal solamente puede consultar sus reservas
         return reservaRepository.findAll()
                 .stream()
                 .filter(r ->
@@ -70,15 +71,11 @@ public class ReservaService {
     // ============================================================
 
     public Optional<Reserva> buscarPorId(Long id) {
-
         if (id == null) {
-            throw new IllegalArgumentException(
-                    "El ID de la reserva es obligatorio."
-            );
+            throw new IllegalArgumentException("El ID de la reserva es obligatorio.");
         }
 
-        Optional<Reserva> reservaOpt =
-                reservaRepository.findById(id);
+        Optional<Reserva> reservaOpt = reservaRepository.findById(id);
 
         if (reservaOpt.isEmpty()) {
             return Optional.empty();
@@ -86,21 +83,15 @@ public class ReservaService {
 
         Reserva reserva = reservaOpt.get();
 
-        // ADMINISTRADOR y EMPLEADO pueden consultar cualquiera
         if (esAdministrador() || esEmpleado()) {
             return Optional.of(reserva);
         }
 
-        // Usuario normal solamente puede consultar la propia
         Usuario usuarioActual = obtenerUsuarioActual();
 
         if (reserva.getUsuario() == null ||
-                !reserva.getUsuario().getIdUsuario()
-                        .equals(usuarioActual.getIdUsuario())) {
-
-            throw new IllegalArgumentException(
-                    "No tenés permiso para consultar esta reserva."
-            );
+                !reserva.getUsuario().getIdUsuario().equals(usuarioActual.getIdUsuario())) {
+            throw new IllegalArgumentException("No tenés permiso para consultar esta reserva.");
         }
 
         return Optional.of(reserva);
@@ -113,318 +104,154 @@ public class ReservaService {
 
     @Transactional
     public Reserva crearReserva(Reserva nuevaReserva) {
-
         if (nuevaReserva == null) {
-            throw new IllegalArgumentException(
-                    "La reserva no puede ser nula."
-            );
+            throw new IllegalArgumentException("La reserva no puede ser nula.");
         }
-
-
-        // ========================================================
-        // OBTENER USUARIO AUTENTICADO
-        // ========================================================
 
         Usuario usuarioActual = obtenerUsuarioActual();
 
-
-        // ========================================================
         // VALIDAR USUARIO RECIBIDO
-        // ========================================================
-
         if (nuevaReserva.getUsuario() == null ||
                 nuevaReserva.getUsuario().getIdUsuario() == null) {
-
             nuevaReserva.setUsuario(usuarioActual);
-
         } else {
+            Long idUsuarioSolicitado = nuevaReserva.getUsuario().getIdUsuario();
+            Usuario usuarioExistente = usuarioRepository.findById(idUsuarioSolicitado)
+                    .orElseThrow(() -> new IllegalArgumentException("El usuario asociado no existe."));
 
-            Long idUsuarioSolicitado =
-                    nuevaReserva.getUsuario().getIdUsuario();
-
-            Optional<Usuario> usuarioExistente =
-                    usuarioRepository.findById(idUsuarioSolicitado);
-
-            if (usuarioExistente.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "El usuario asociado no existe."
-                );
-            }
-
-            // ADMINISTRADOR y EMPLEADO pueden crear reservas
-            // para otros usuarios.
             if (esAdministrador() || esEmpleado()) {
-
-                nuevaReserva.setUsuario(
-                        usuarioExistente.get()
-                );
-
+                nuevaReserva.setUsuario(usuarioExistente);
             } else {
-
-                // SOCIO / USUARIO solamente pueden reservar
-                // para sí mismos.
-                if (!usuarioExistente.get().getIdUsuario()
-                        .equals(usuarioActual.getIdUsuario())) {
-
-                    throw new IllegalArgumentException(
-                            "No podés crear una reserva para otro usuario."
-                    );
+                if (!usuarioExistente.getIdUsuario().equals(usuarioActual.getIdUsuario())) {
+                    throw new IllegalArgumentException("No podés crear una reserva para otro usuario.");
                 }
-
                 nuevaReserva.setUsuario(usuarioActual);
             }
         }
 
-
-        // ========================================================
         // VALIDAR INSTALACIÓN
-        // ========================================================
-
         if (nuevaReserva.getInstalacion() == null ||
                 nuevaReserva.getInstalacion().getIdInstalacion() == null) {
-
-            throw new IllegalArgumentException(
-                    "La reserva debe estar asociada a una instalación."
-            );
+            throw new IllegalArgumentException("La reserva debe estar asociada a una instalación.");
         }
 
-        Long idInstalacion =
-                nuevaReserva.getInstalacion().getIdInstalacion();
-
-        Optional<Instalacion> instalacionExistente =
-                instalacionRepository.findById(idInstalacion);
-
-        if (instalacionExistente.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "La instalación asociada no existe."
-            );
-        }
-
-        Instalacion instalacion =
-                instalacionExistente.get();
+        Long idInstalacion = nuevaReserva.getInstalacion().getIdInstalacion();
+        Instalacion instalacion = instalacionRepository.findById(idInstalacion)
+                .orElseThrow(() -> new IllegalArgumentException("La instalación asociada no existe."));
 
         nuevaReserva.setInstalacion(instalacion);
 
-
-        // ========================================================
-        // VALIDAR ESTADO DE INSTALACIÓN
-        // ========================================================
-
-        if (!"DISPONIBLE".equalsIgnoreCase(
-                instalacion.getEstado())) {
-
-            throw new IllegalArgumentException(
-                    "La instalación no está disponible para reservar."
-            );
+        if (!"DISPONIBLE".equalsIgnoreCase(instalacion.getEstado())) {
+            throw new IllegalArgumentException("La instalación no está disponible para reservar.");
         }
 
-
-        // ========================================================
-        // VALIDAR FECHA
-        // ========================================================
-
+        // VALIDAR FECHA Y HORA
         if (nuevaReserva.getFechaReserva() == null) {
-            throw new IllegalArgumentException(
-                    "La fecha de la reserva es obligatoria."
-            );
+            throw new IllegalArgumentException("La fecha de la reserva es obligatoria.");
         }
-
-        LocalDate fechaReserva =
-                nuevaReserva.getFechaReserva();
-
-        if (fechaReserva.isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException(
-                    "No se puede realizar una reserva para una fecha pasada."
-            );
-        }
-
-
-        // ========================================================
-        // VALIDAR HORA
-        // ========================================================
 
         if (nuevaReserva.getHoraInicio() == null) {
-            throw new IllegalArgumentException(
-                    "La hora de inicio es obligatoria."
-            );
+            throw new IllegalArgumentException("La hora de inicio es obligatoria.");
         }
 
+        LocalDate hoy = LocalDate.now();
+        LocalDate fechaReserva = nuevaReserva.getFechaReserva();
+        LocalTime horaInicio = nuevaReserva.getHoraInicio();
 
-        // ========================================================
+        LocalDateTime inicioDT = LocalDateTime.of(fechaReserva, horaInicio);
+
+        if (inicioDT.isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("No se puede realizar una reserva para una fecha u horario que ya pasó.");
+        }
+
         // VALIDAR DURACIÓN
-        // ========================================================
-
-        if (nuevaReserva.getDuracionHoras() == null ||
-                nuevaReserva.getDuracionHoras() <= 0) {
-
-            throw new IllegalArgumentException(
-                    "La duración de la reserva debe ser mayor a 0."
-            );
+        if (nuevaReserva.getDuracionHoras() == null || nuevaReserva.getDuracionHoras() <= 0) {
+            throw new IllegalArgumentException("La duración de la reserva debe ser mayor a 0.");
         }
 
-        if (nuevaReserva.getDuracionHoras() > 24) {
-            throw new IllegalArgumentException(
-                    "La duración de la reserva no puede superar las 24 horas."
-            );
+        if (nuevaReserva.getDuracionHoras() > 17) {
+            throw new IllegalArgumentException("La duración de la reserva supera el horario de atención.");
         }
 
-
-        // ========================================================
-        // CALCULAR HORARIO
-        // ========================================================
-
-        LocalTime nuevaInicio =
-                nuevaReserva.getHoraInicio();
-
-        LocalTime nuevaFin =
-                nuevaInicio.plusHours(
-                        nuevaReserva.getDuracionHoras()
-                );
-
-        if (!nuevaFin.isAfter(nuevaInicio)) {
-
-            throw new IllegalArgumentException(
-                    "La reserva no puede extenderse más allá de la medianoche."
-            );
+        // VALIDAR HORARIO DE ATENCIÓN (10:00 A 03:00)
+        boolean fueraDeHorarioInicio = !horaInicio.isBefore(HORA_CIERRE) && horaInicio.isBefore(HORA_APERTURA);
+        if (fueraDeHorarioInicio) {
+            throw new IllegalArgumentException("El horario de reservas es de 10:00 a 03:00.");
         }
 
+        LocalDateTime finDT = inicioDT.plusHours(nuevaReserva.getDuracionHoras());
+        LocalDateTime limiteCierre = horaInicio.isBefore(HORA_CIERRE)
+                ? LocalDateTime.of(fechaReserva, HORA_CIERRE)
+                : LocalDateTime.of(fechaReserva.plusDays(1), HORA_CIERRE);
 
-        // ========================================================
-        // CALCULAR MONTO
-        // ========================================================
-
-        if (instalacion.getTarifaBase() == null ||
-                instalacion.getTarifaBase() < 0) {
-
-            throw new IllegalArgumentException(
-                    "La tarifa base de la instalación no es válida."
-            );
+        if (finDT.isAfter(limiteCierre)) {
+            throw new IllegalArgumentException("La reserva no puede extenderse más allá de las 03:00.");
         }
 
-        double montoBase =
-                instalacion.getTarifaBase()
-                        * nuevaReserva.getDuracionHoras();
+        // CALCULAR MONTO Y DESCUENTO CON MEMBRESÍA VIGENTE REAL
+        if (instalacion.getTarifaBase() == null || instalacion.getTarifaBase() < 0) {
+            throw new IllegalArgumentException("La tarifa base de la instalación no es válida.");
+        }
 
+        double montoBase = instalacion.getTarifaBase() * nuevaReserva.getDuracionHoras();
         double descuento = 0.0;
 
-
-        // ========================================================
-        // BUSCAR MEMBRESÍA VIGENTE
-        // ========================================================
-
-        List<Membresia> membresiasVigentes =
-                membresiaRepository
-                        .findBySocioIdUsuarioAndEstado(
-                                nuevaReserva.getUsuario()
-                                        .getIdUsuario(),
-                                "VIGENTE"
-                        );
+        List<Membresia> membresiasVigentes = membresiaRepository
+                .findBySocioIdUsuarioAndEstado(
+                        nuevaReserva.getUsuario().getIdUsuario(),
+                        "VIGENTE"
+                )
+                .stream()
+                .filter(m ->
+                        m.getFechaInicio() != null &&
+                                m.getFechaVenc() != null &&
+                                !hoy.isBefore(m.getFechaInicio()) &&
+                                !hoy.isAfter(m.getFechaVenc())
+                )
+                .toList();
 
         if (!membresiasVigentes.isEmpty()) {
-
-            Membresia membresia =
-                    membresiasVigentes.get(0);
-
+            Membresia membresia = membresiasVigentes.get(0);
             if (membresia.getCategoria() != null &&
-                    membresia.getCategoria()
-                            .getPorcDescuento() != null) {
-
-                descuento =
-                        membresia.getCategoria()
-                                .getPorcDescuento();
+                    membresia.getCategoria().getPorcDescuento() != null) {
+                descuento = membresia.getCategoria().getPorcDescuento();
             }
         }
 
-
-        // ========================================================
-        // CALCULAR MONTO FINAL
-        // ========================================================
-
-        double montoFinal =
-                montoBase -
-                        (montoBase * descuento / 100.0);
-
+        double montoFinal = montoBase - (montoBase * descuento / 100.0);
         if (montoFinal < 0) {
             montoFinal = 0;
         }
 
         nuevaReserva.setMontoTotal(montoFinal);
-
-
-        // ========================================================
-        // ESTADO
-        // ========================================================
-
-        /*
-         * Toda reserva creada normalmente comienza PENDIENTE.
-         *
-         * El PagoService será el encargado de confirmar
-         * la reserva cuando el pago sea aprobado.
-         */
-
         nuevaReserva.setEstado("PENDIENTE");
 
-
-        // ========================================================
-        // FECHA DE CREACIÓN
-        // ========================================================
-
         if (nuevaReserva.getFechaCreacion() == null) {
-
-            nuevaReserva.setFechaCreacion(
-                    LocalDateTime.now()
-            );
+            nuevaReserva.setFechaCreacion(LocalDateTime.now());
         }
 
-
-        // ========================================================
-        // BUSCAR RESERVAS EXISTENTES
-        // ========================================================
-
-        List<Reserva> existentes =
-                reservaRepository
-                        .findReservasActivasPorInstalacionYFecha(
-                                idInstalacion,
-                                fechaReserva
-                        );
-
-
-        // ========================================================
-        // COMPROBAR SOLAPAMIENTO
-        // ========================================================
+        // COMPROBAR SOLAPAMIENTO (INCLUYENDO CRUCE DE MEDIANOCHE)
+        List<Reserva> existentes = new ArrayList<>();
+        existentes.addAll(reservaRepository.findReservasActivasPorInstalacionYFecha(idInstalacion, fechaReserva.minusDays(1)));
+        existentes.addAll(reservaRepository.findReservasActivasPorInstalacionYFecha(idInstalacion, fechaReserva));
+        existentes.addAll(reservaRepository.findReservasActivasPorInstalacionYFecha(idInstalacion, fechaReserva.plusDays(1)));
 
         for (Reserva r : existentes) {
-
-            if (r.getHoraInicio() == null ||
-                    r.getDuracionHoras() == null) {
-
+            if (r.getFechaReserva() == null || r.getHoraInicio() == null || r.getDuracionHoras() == null) {
                 continue;
             }
 
-            LocalTime rInicio =
-                    r.getHoraInicio();
+            LocalDateTime rInicio = LocalDateTime.of(r.getFechaReserva(), r.getHoraInicio());
+            LocalDateTime rFin = rInicio.plusHours(r.getDuracionHoras());
 
-            LocalTime rFin =
-                    rInicio.plusHours(
-                            r.getDuracionHoras()
-                    );
-
-            boolean haySolapamiento =
-                    nuevaInicio.isBefore(rFin) &&
-                            nuevaFin.isAfter(rInicio);
+            boolean haySolapamiento = inicioDT.isBefore(rFin) && finDT.isAfter(rInicio);
 
             if (haySolapamiento) {
-
                 throw new IllegalArgumentException(
                         "Conflicto de horario: la instalación ya se encuentra ocupada o reservada en ese rango."
                 );
             }
         }
-
-
-        // ========================================================
-        // GUARDAR
-        // ========================================================
 
         return reservaRepository.save(nuevaReserva);
     }
@@ -436,193 +263,59 @@ public class ReservaService {
 
     @Transactional
     public void cancelarReserva(Long id) {
-
         if (id == null) {
-            throw new IllegalArgumentException(
-                    "El ID de la reserva es obligatorio."
-            );
+            throw new IllegalArgumentException("El ID de la reserva es obligatorio.");
         }
 
+        Reserva reserva = reservaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada con ID: " + id));
 
-        // ========================================================
-        // BUSCAR RESERVA
-        // ========================================================
+        Usuario usuarioActual = obtenerUsuarioActual();
 
-        Reserva reserva =
-                reservaRepository.findById(id)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Reserva no encontrada con ID: " + id
-                                )
-                        );
+        boolean esPropietario = reserva.getUsuario() != null &&
+                reserva.getUsuario().getIdUsuario().equals(usuarioActual.getIdUsuario());
 
-
-        // ========================================================
-        // VERIFICAR PROPIETARIO
-        // ========================================================
-
-        Usuario usuarioActual =
-                obtenerUsuarioActual();
-
-        boolean esPropietario =
-                reserva.getUsuario() != null &&
-                        reserva.getUsuario()
-                                .getIdUsuario()
-                                .equals(
-                                        usuarioActual.getIdUsuario()
-                                );
-
-        if (!esAdministrador() &&
-                !esEmpleado() &&
-                !esPropietario) {
-
-            throw new IllegalArgumentException(
-                    "No tenés permiso para cancelar esta reserva."
-            );
+        if (!esAdministrador() && !esEmpleado() && !esPropietario) {
+            throw new IllegalArgumentException("No tenés permiso para cancelar esta reserva.");
         }
 
-
-        // ========================================================
-        // VERIFICAR ESTADO
-        // ========================================================
-
-        if ("CANCELADA".equals(
-                reserva.getEstado())) {
-
-            throw new IllegalArgumentException(
-                    "La reserva ya se encuentra cancelada."
-            );
+        if ("CANCELADA".equalsIgnoreCase(reserva.getEstado())) {
+            throw new IllegalArgumentException("La reserva ya se encuentra cancelada.");
         }
 
+        boolean estabaConfirmada = "CONFIRMADA".equalsIgnoreCase(reserva.getEstado());
 
-        // ========================================================
-        // VERIFICAR ANTICIPACIÓN
-        // ========================================================
+        // La regla de las 48 hs hábiles aplica a reservas ya confirmadas (pagas)
+        if (estabaConfirmada) {
+            LocalDateTime inicioReserva = LocalDateTime.of(
+                    reserva.getFechaReserva(),
+                    reserva.getHoraInicio()
+            );
 
-        /*
-         * La reserva debe cancelarse con una anticipación
-         * mínima de 48 horas hábiles.
-         *
-         * Se consideran hábiles los días de lunes a viernes.
-         * No se contemplan feriados.
-         */
+            LocalDateTime limiteCancelacion = calcularLimiteCancelacion(inicioReserva);
 
-        LocalDateTime inicioReserva =
-                LocalDateTime.of(
-                        reserva.getFechaReserva(),
-                        reserva.getHoraInicio()
+            if (LocalDateTime.now().isAfter(limiteCancelacion)) {
+                throw new IllegalArgumentException(
+                        "La reserva debe cancelarse con al menos 48 horas hábiles de anticipación."
                 );
-
-        LocalDateTime limiteCancelacion =
-                calcularLimiteCancelacion(inicioReserva);
-
-        if (LocalDateTime.now()
-                .isAfter(limiteCancelacion)) {
-
-            throw new IllegalArgumentException(
-                    "La reserva debe cancelarse con al menos 48 horas hábiles de anticipación."
-            );
+            }
         }
-
-
-        // ========================================================
-        // CANCELAR
-        // ========================================================
 
         reserva.setEstado("CANCELADA");
-
         reservaRepository.save(reserva);
 
+        // SOLO genera reserva a favor si el pago ya estaba confirmado
+        if (estabaConfirmada && reservaAFavorRepository.findByReservaOrigenIdReserva(id).isEmpty()) {
+            ReservaAFavor reservaAFavor = new ReservaAFavor();
+            LocalDate fechaGeneracion = LocalDate.now();
 
-        // ========================================================
-        // CREAR RESERVA A FAVOR
-        // ========================================================
-
-        /*
-         * Al cancelar correctamente:
-         *
-         * - NO se genera dinero.
-         * - NO se genera saldo.
-         * - NO se calcula monto acreditado.
-         *
-         * Se genera un derecho para volver a reservar
-         * la MISMA instalación de la reserva cancelada.
-         *
-         * La reserva a favor tiene una vigencia de 3 meses.
-         */
-
-        if (reservaAFavorRepository
-                .findByReservaOrigenIdReserva(id)
-                .isEmpty()) {
-
-            ReservaAFavor reservaAFavor =
-                    new ReservaAFavor();
-
-
-            // ----------------------------------------------------
-            // FECHA DE GENERACIÓN
-            // ----------------------------------------------------
-
-            LocalDate fechaGeneracion =
-                    LocalDate.now();
-
-            reservaAFavor.setFechaGeneracion(
-                    fechaGeneracion
-            );
-
-
-            // ----------------------------------------------------
-            // FECHA DE VENCIMIENTO
-            // ----------------------------------------------------
-
-            reservaAFavor.setFechaVencimiento(
-                    fechaGeneracion.plusMonths(3)
-            );
-
-
-            // ----------------------------------------------------
-            // NO UTILIZADA
-            // ----------------------------------------------------
-
+            reservaAFavor.setFechaGeneracion(fechaGeneracion);
+            reservaAFavor.setFechaVencimiento(fechaGeneracion.plusMonths(3));
             reservaAFavor.setUtilizada(false);
+            reservaAFavor.setReservaOrigen(reserva);
+            reservaAFavor.setUsuario(reserva.getUsuario());
 
-
-            // ----------------------------------------------------
-            // RESERVA DE ORIGEN
-            // ----------------------------------------------------
-
-            /*
-             * Acá queda guardada la reserva cancelada.
-             *
-             * A través de ella podemos obtener:
-             *
-             * reservaOrigen.getInstalacion()
-             *
-             * Por lo tanto NO necesitamos guardar
-             * otra instalación dentro de ReservaAFavor.
-             */
-
-            reservaAFavor.setReservaOrigen(
-                    reserva
-            );
-
-
-            // ----------------------------------------------------
-            // USUARIO DUEÑO
-            // ----------------------------------------------------
-
-            reservaAFavor.setUsuario(
-                    reserva.getUsuario()
-            );
-
-
-            // ----------------------------------------------------
-            // GUARDAR
-            // ----------------------------------------------------
-
-            reservaAFavorRepository.save(
-                    reservaAFavor
-            );
+            reservaAFavorRepository.save(reservaAFavor);
         }
     }
 
@@ -631,29 +324,12 @@ public class ReservaService {
     // CALCULAR LÍMITE DE CANCELACIÓN
     // ============================================================
 
-    private LocalDateTime calcularLimiteCancelacion(
-            LocalDateTime inicioReserva
-    ) {
-
-        LocalDateTime limite =
-                inicioReserva;
-
+    private LocalDateTime calcularLimiteCancelacion(LocalDateTime inicioReserva) {
+        LocalDateTime limite = inicioReserva;
         int horasHabiles = 0;
 
         while (horasHabiles < 48) {
-
             limite = limite.minusHours(1);
-
-            /*
-             * Lunes = 1
-             * Martes = 2
-             * Miércoles = 3
-             * Jueves = 4
-             * Viernes = 5
-             *
-             * Sábado y domingo no cuentan.
-             */
-
             if (limite.getDayOfWeek().getValue() <= 5) {
                 horasHabiles++;
             }
@@ -664,93 +340,36 @@ public class ReservaService {
 
 
     // ============================================================
-    // OBTENER USUARIO AUTENTICADO
+    // HELPERS DE SEGURIDAD
     // ============================================================
 
     private Usuario obtenerUsuarioActual() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        Authentication authentication =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication();
-
-        if (authentication == null ||
-                !authentication.isAuthenticated()) {
-
-            throw new IllegalArgumentException(
-                    "No hay un usuario autenticado."
-            );
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new IllegalArgumentException("No hay un usuario autenticado.");
         }
 
-        String nombreUsuario =
-                authentication.getName();
-
-        if (nombreUsuario == null ||
-                nombreUsuario.trim().isEmpty()) {
-
-            throw new IllegalArgumentException(
-                    "No se pudo identificar al usuario autenticado."
-            );
+        String nombreUsuario = authentication.getName();
+        if (nombreUsuario == null || nombreUsuario.trim().isEmpty()) {
+            throw new IllegalArgumentException("No se pudo identificar al usuario autenticado.");
         }
 
-        return usuarioRepository
-                .findByNombreUsuario(nombreUsuario)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "El usuario autenticado no existe."
-                        )
-                );
+        return usuarioRepository.findByNombreUsuario(nombreUsuario)
+                .orElseThrow(() -> new IllegalArgumentException("El usuario autenticado no existe."));
     }
-
-
-    // ============================================================
-    // VERIFICAR ADMINISTRADOR
-    // ============================================================
 
     private boolean esAdministrador() {
-
-        Authentication authentication =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication();
-
-        if (authentication == null) {
-            return false;
-        }
-
-        return authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        "ROLE_ADMINISTRADOR"
-                                .equals(
-                                        authority.getAuthority()
-                                )
-                );
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMINISTRADOR".equals(a.getAuthority()));
     }
 
-
-    // ============================================================
-    // VERIFICAR EMPLEADO
-    // ============================================================
-
     private boolean esEmpleado() {
-
-        Authentication authentication =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication();
-
-        if (authentication == null) {
-            return false;
-        }
-
-        return authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        "ROLE_EMPLEADO"
-                                .equals(
-                                        authority.getAuthority()
-                                )
-                );
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_EMPLEADO".equals(a.getAuthority()));
     }
 }

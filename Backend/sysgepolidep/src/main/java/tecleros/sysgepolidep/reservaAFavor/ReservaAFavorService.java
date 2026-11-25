@@ -683,10 +683,7 @@ public class ReservaAFavorService {
          * se está utilizando una reserva a favor.
          */
 
-        nuevaReserva.setEstado(
-                "CONFIRMADA"
-        );
-
+        nuevaReserva.setEstado((esAdministrador() || esEmpleado()) ? "CONFIRMADA" : "PENDIENTE_APROBACION");
 
         /*
          * No se realiza un nuevo pago.
@@ -737,6 +734,7 @@ public class ReservaAFavorService {
 
         return reservaCreada;
     }
+
 
 
     // ============================================================
@@ -797,7 +795,58 @@ public class ReservaAFavorService {
         );
     }
 
+    @Transactional
+    public Reserva aprobarReprogramacion(Long idReserva) {
+        if (!esAdministrador() && !esEmpleado()) {
+            throw new IllegalArgumentException("Solo un administrador o empleado puede aprobar reprogramaciones.");
+        }
 
+        Reserva reserva = reservaRepository.findById(idReserva)
+                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada."));
+
+        if (!"PENDIENTE_APROBACION".equalsIgnoreCase(reserva.getEstado())) {
+            throw new IllegalArgumentException("Esta reserva no está pendiente de aprobación.");
+        }
+
+        reserva.setEstado("CONFIRMADA");
+        return reservaRepository.save(reserva);
+    }
+
+    @Transactional
+    public Reserva rechazarReprogramacion(Long idReserva) {
+        if (!esAdministrador() && !esEmpleado()) {
+            throw new IllegalArgumentException("Solo un administrador o empleado puede rechazar reprogramaciones.");
+        }
+
+        Reserva reserva = reservaRepository.findById(idReserva)
+                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada."));
+
+        if (!"PENDIENTE_APROBACION".equalsIgnoreCase(reserva.getEstado())) {
+            throw new IllegalArgumentException("Esta reserva no está pendiente de aprobación.");
+        }
+
+        reserva.setEstado("CANCELADA");
+        Reserva cancelada = reservaRepository.save(reserva);
+
+        // Devolver la reserva a favor al usuario para que pueda proponer otra fecha
+        if (reserva.getUsuario() != null) {
+            reservaAFavorRepository.findByUsuarioIdUsuario(reserva.getUsuario().getIdUsuario())
+                    .stream()
+                    .filter(rf -> Boolean.TRUE.equals(rf.getUtilizada())
+                            && rf.getReservaOrigen() != null
+                            && rf.getReservaOrigen().getInstalacion() != null
+                            && reserva.getInstalacion() != null
+                            && rf.getReservaOrigen().getInstalacion().getIdInstalacion()
+                            .equals(reserva.getInstalacion().getIdInstalacion()))
+                    .reduce((primera, segunda) -> segunda) // la más reciente
+                    .ifPresent(rf -> {
+                        rf.setUtilizada(false);
+                        reservaAFavorRepository.save(rf);
+                    });
+        }
+
+        return cancelada;
+    }
     // ============================================================
     // ELIMINAR RESERVA A FAVOR
     // ============================================================

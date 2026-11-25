@@ -469,9 +469,13 @@ public class SocioService {
         // GUARDAR MEMBRESÍA
         // ------------------------------------------------------
 
-        return membresiaRepository.save(
-                membresia
-        );
+        Membresia membresiaGuardada =
+                membresiaRepository.save(membresia);
+
+        usuario.setEstado("ACTIVO");
+        usuarioRepository.save(usuario);
+
+        return membresiaGuardada;
     }
 
 

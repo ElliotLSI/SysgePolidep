@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react"
 
 function Usuarios() {
-
     const [usuarios, setUsuarios] = useState([])
+    const [membresias, setMembresias] = useState([])
+    const [busqueda, setBusqueda] = useState("")
+    const [filtroMembresia, setFiltroMembresia] = useState("TODOS") // TODOS | CON_MEMBRESIA | SIN_MEMBRESIA
     const [cargando, setCargando] = useState(true)
     const [error, setError] = useState("")
+    const [mensaje, setMensaje] = useState("")
 
     const [modoEdicion, setModoEdicion] = useState(false)
     const [usuarioEditando, setUsuarioEditando] = useState(null)
-
     const [mostrarFormulario, setMostrarFormulario] = useState(false)
 
-    const [nuevoUsuario, setNuevoUsuario] = useState({
+    const estadoInicial = {
         nombre: "",
         apellido: "",
         dni: "",
@@ -24,1043 +26,387 @@ function Usuarios() {
         pertenencia: "NINGUNO",
         legajo: "",
         estado: "ACTIVO"
-    })
+    }
 
-    // ==========================================================
-    // FECHA ACTUAL
-    // ==========================================================
+    const [nuevoUsuario, setNuevoUsuario] = useState(estadoInicial)
 
     const obtenerFechaActual = () => {
-
         const hoy = new Date()
-
         const año = hoy.getFullYear()
-
-        const mes = String(
-            hoy.getMonth() + 1
-        ).padStart(2, "0")
-
-        const dia = String(
-            hoy.getDate()
-        ).padStart(2, "0")
-
+        const mes = String(hoy.getMonth() + 1).padStart(2, "0")
+        const dia = String(hoy.getDate()).padStart(2, "0")
         return `${año}-${mes}-${dia}`
     }
 
-    const fechaMaximaNacimiento =
-        obtenerFechaActual()
-
-
-    // ==========================================================
-    // OBTENER USUARIOS
-    // ==========================================================
+    const fechaMaximaNacimiento = obtenerFechaActual()
 
     const obtenerUsuarios = async () => {
-
         try {
+            const token = sessionStorage.getItem("token")
+            const headers = { Authorization: `Bearer ${token}` }
 
-            const token =
-                sessionStorage.getItem("token")
+            const [resUsuarios, resMembresias] = await Promise.all([
+                fetch("http://localhost:8080/api/usuarios", { headers }),
+                fetch("http://localhost:8080/api/membresias", { headers }).catch(() => null)
+            ])
 
-            const respuesta = await fetch(
-                "http://localhost:8080/api/usuarios",
-                {
-                    method: "GET",
-                    headers: {
-                        "Authorization":
-                            `Bearer ${token}`
-                    }
-                }
-            )
+            if (!resUsuarios.ok) throw new Error("No se pudieron obtener los usuarios")
 
-            if (!respuesta.ok) {
-                throw new Error(
-                    "No se pudieron obtener los usuarios"
-                )
-            }
-
-            const datos =
-                await respuesta.json()
-
-            setUsuarios(datos)
-
-        } catch (error) {
-
-            console.error(
-                "Error al obtener usuarios:",
-                error
-            )
-
-            setError(error.message)
-
+            setUsuarios(await resUsuarios.json())
+            setMembresias(resMembresias?.ok ? await resMembresias.json() : [])
+        } catch (err) {
+            console.error(err)
+            setError(err.message)
         } finally {
-
             setCargando(false)
-
         }
     }
-
 
     useEffect(() => {
         obtenerUsuarios()
     }, [])
 
+    // Coincide exactamente con la vigencia real de Membresias.jsx
+    const tieneMembresiaVigente = (idUsuario) => {
+        const hoy = new Date()
+        hoy.setHours(0, 0, 0, 0)
 
-    // ==========================================================
-    // MANEJAR CAMBIOS
-    // ==========================================================
-
-    const manejarCambio = (e) => {
-
-        const {
-            name,
-            value
-        } = e.target
-
-        setNuevoUsuario({
-            ...nuevoUsuario,
-            [name]: value
+        return membresias.some(m => {
+            if (m.socio?.idUsuario !== idUsuario) return false
+            if (m.estado !== "VIGENTE") return false
+            if (m.fechaVenc) {
+                const venc = new Date(m.fechaVenc + "T00:00:00")
+                if (venc < hoy) return false
+            }
+            return true
         })
     }
 
-
-    // ==========================================================
-    // EDITAR USUARIO
-    // ==========================================================
+    const manejarCambio = (e) => {
+        const { name, value } = e.target
+        setNuevoUsuario({ ...nuevoUsuario, [name]: value })
+    }
 
     const editarUsuario = (usuario) => {
-
+        setError("")
+        setMensaje("")
         setUsuarioEditando(usuario)
-
         setNuevoUsuario({
-            nombre:
-                usuario.nombre || "",
-
-            apellido:
-                usuario.apellido || "",
-
-            dni:
-                usuario.dni || "",
-
-            fechaNacimiento:
-                usuario.fechaNacimiento || "",
-
-            domicilio:
-                usuario.domicilio || "",
-
-            telefono:
-                usuario.telefono || "",
-
-            email:
-                usuario.email || "",
-
-            nombreUsuario:
-                usuario.nombreUsuario || "",
-
-            password:
-                "",
-
-            pertenencia:
-                usuario.pertenencia || "NINGUNO",
-
-            legajo:
-                usuario.legajo || "",
-
-            estado:
-                usuario.estado || "ACTIVO"
+            nombre: usuario.nombre || "",
+            apellido: usuario.apellido || "",
+            dni: usuario.dni || "",
+            fechaNacimiento: usuario.fechaNacimiento || "",
+            domicilio: usuario.domicilio || "",
+            telefono: usuario.telefono || "",
+            email: usuario.email || "",
+            nombreUsuario: usuario.nombreUsuario || "",
+            password: "",
+            pertenencia: usuario.pertenencia || "NINGUNO",
+            legajo: usuario.legajo || "",
+            estado: usuario.estado || "ACTIVO"
         })
-
         setModoEdicion(true)
         setMostrarFormulario(true)
     }
 
-
-    // ==========================================================
-    // GUARDAR USUARIO
-    // ==========================================================
-
     const guardarUsuario = async (e) => {
-
         e.preventDefault()
+        setError("")
+        setMensaje("")
 
-
-        // ------------------------------------------------------
-        // VALIDAR FECHA DE NACIMIENTO
-        // ------------------------------------------------------
-
-        if (
-            nuevoUsuario.fechaNacimiento &&
-            nuevoUsuario.fechaNacimiento >
-            fechaMaximaNacimiento
-        ) {
-
-            alert(
-                "La fecha de nacimiento no puede ser posterior a la fecha actual."
-            )
-
+        if (nuevoUsuario.fechaNacimiento && nuevoUsuario.fechaNacimiento > fechaMaximaNacimiento) {
+            setError("La fecha de nacimiento no puede ser posterior a la fecha actual.")
             return
         }
 
-
         try {
+            const token = sessionStorage.getItem("token")
+            const url = modoEdicion
+                ? `http://localhost:8080/api/usuarios/${usuarioEditando.idUsuario}`
+                : "http://localhost:8080/api/usuarios"
 
-            const token =
-                sessionStorage.getItem("token")
-
-            let respuesta
-
-
-            // --------------------------------------------------
-            // ACTUALIZAR
-            // --------------------------------------------------
-
-            if (modoEdicion) {
-
-                respuesta = await fetch(
-                    `http://localhost:8080/api/usuarios/${usuarioEditando.idUsuario}`,
-                    {
-                        method: "PUT",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json",
-
-                            "Authorization":
-                                `Bearer ${token}`
-                        },
-
-                        body:
-                            JSON.stringify(
-                                nuevoUsuario
-                            )
-                    }
-                )
-
-            }
-
-                // --------------------------------------------------
-                // CREAR
-            // --------------------------------------------------
-
-            else {
-
-                respuesta = await fetch(
-                    "http://localhost:8080/api/usuarios",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json",
-
-                            "Authorization":
-                                `Bearer ${token}`
-                        },
-
-                        body:
-                            JSON.stringify(
-                                nuevoUsuario
-                            )
-                    }
-                )
-            }
-
-
-            // --------------------------------------------------
-            // ERROR
-            // --------------------------------------------------
-
-            if (!respuesta.ok) {
-
-                const mensaje =
-                    await respuesta.text()
-
-                throw new Error(
-                    mensaje ||
-                    "No se pudo guardar el usuario"
-                )
-            }
-
-
-            const datos =
-                await respuesta.json()
-
-            console.log(
-                "Usuario guardado:",
-                datos
-            )
-
-
-            // --------------------------------------------------
-            // LIMPIAR FORMULARIO
-            // --------------------------------------------------
-
-            setMostrarFormulario(false)
-
-            setModoEdicion(false)
-
-            setUsuarioEditando(null)
-
-            setNuevoUsuario({
-                nombre: "",
-                apellido: "",
-                dni: "",
-                fechaNacimiento: "",
-                domicilio: "",
-                telefono: "",
-                email: "",
-                nombreUsuario: "",
-                password: "",
-                pertenencia: "NINGUNO",
-                legajo: "",
-                estado: "ACTIVO"
+            const respuesta = await fetch(url, {
+                method: modoEdicion ? "PUT" : "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(nuevoUsuario)
             })
 
-
-            await obtenerUsuarios()
-
-
-            if (modoEdicion) {
-
-                alert(
-                    "Usuario actualizado correctamente"
-                )
-
-            } else {
-
-                alert(
-                    "Usuario creado correctamente"
-                )
+            if (!respuesta.ok) {
+                const msg = await respuesta.text()
+                throw new Error(msg || "No se pudo guardar el usuario")
             }
 
-
-        } catch (error) {
-
-            console.error(
-                "Error al guardar usuario:",
-                error
-            )
-
-            alert(error.message)
+            cancelarFormulario()
+            setMensaje(modoEdicion ? "Usuario actualizado correctamente." : "Usuario creado correctamente.")
+            await obtenerUsuarios()
+        } catch (err) {
+            console.error(err)
+            setError(err.message)
         }
     }
 
-
-    // ==========================================================
-    // CANCELAR FORMULARIO
-    // ==========================================================
-
     const cancelarFormulario = () => {
-
         setMostrarFormulario(false)
-
         setModoEdicion(false)
-
         setUsuarioEditando(null)
-
-        setNuevoUsuario({
-            nombre: "",
-            apellido: "",
-            dni: "",
-            fechaNacimiento: "",
-            domicilio: "",
-            telefono: "",
-            email: "",
-            nombreUsuario: "",
-            password: "",
-            pertenencia: "NINGUNO",
-            legajo: "",
-            estado: "ACTIVO"
-        })
+        setNuevoUsuario(estadoInicial)
     }
 
-
-    // ==========================================================
-    // NUEVO USUARIO
-    // ==========================================================
-
     const nuevoUsuarioFormulario = () => {
-
+        setError("")
+        setMensaje("")
         setModoEdicion(false)
-
         setUsuarioEditando(null)
-
-        setNuevoUsuario({
-            nombre: "",
-            apellido: "",
-            dni: "",
-            fechaNacimiento: "",
-            domicilio: "",
-            telefono: "",
-            email: "",
-            nombreUsuario: "",
-            password: "",
-            pertenencia: "NINGUNO",
-            legajo: "",
-            estado: "ACTIVO"
-        })
-
+        setNuevoUsuario(estadoInicial)
         setMostrarFormulario(true)
     }
 
-
-    // ==========================================================
-    // ELIMINAR USUARIO
-    // ==========================================================
-
     const eliminarUsuario = async (id) => {
-
-        const confirmar =
-            window.confirm(
-                "¿Estás seguro de que querés eliminar este usuario?"
-            )
-
-        if (!confirmar) {
-            return
-        }
-
+        if (!window.confirm("¿Estás seguro de que querés eliminar este usuario?")) return
+        setError("")
+        setMensaje("")
 
         try {
-
-            const token =
-                sessionStorage.getItem("token")
-
-            const respuesta = await fetch(
-                `http://localhost:8080/api/usuarios/${id}`,
-                {
-                    method: "DELETE",
-
-                    headers: {
-                        "Authorization":
-                            `Bearer ${token}`
-                    }
-                }
-            )
-
-
-            if (!respuesta.ok) {
-
-                throw new Error(
-                    "No se pudo eliminar el usuario"
-                )
-            }
-
-
+            const token = sessionStorage.getItem("token")
+            const respuesta = await fetch(`http://localhost:8080/api/usuarios/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            if (!respuesta.ok) throw new Error("No se pudo eliminar el usuario")
+            setMensaje("Usuario eliminado correctamente.")
             await obtenerUsuarios()
-
-            alert(
-                "Usuario eliminado correctamente"
-            )
-
-
-        } catch (error) {
-
-            console.error(
-                "Error al eliminar usuario:",
-                error
-            )
-
-            alert(error.message)
+        } catch (err) {
+            console.error(err)
+            setError(err.message)
         }
     }
 
+    const totalConMembresia = usuarios.filter(u => tieneMembresiaVigente(u.idUsuario)).length
+    const totalSinMembresia = usuarios.length - totalConMembresia
 
-    // ==========================================================
-    // CARGANDO
-    // ==========================================================
+    const usuariosFiltrados = usuarios.filter(u => {
+        const esSocioVigente = tieneMembresiaVigente(u.idUsuario)
+        if (filtroMembresia === "CON_MEMBRESIA" && !esSocioVigente) return false
+        if (filtroMembresia === "SIN_MEMBRESIA" && esSocioVigente) return false
 
-    if (cargando) {
-
+        const texto = busqueda.trim().toLowerCase()
+        if (!texto) return true
         return (
-            <p>
-                Cargando usuarios...
-            </p>
+            `${u.nombre} ${u.apellido}`.toLowerCase().includes(texto) ||
+            (u.nombreUsuario || "").toLowerCase().includes(texto) ||
+            (u.dni || "").toLowerCase().includes(texto) ||
+            (u.email || "").toLowerCase().includes(texto)
         )
-    }
+    })
 
-
-    // ==========================================================
-    // ERROR
-    // ==========================================================
-
-    if (error) {
-
-        return (
-            <p className="error-message">
-                {error}
-            </p>
-        )
-    }
-
-
-    // ==========================================================
-    // VISTA
-    // ==========================================================
+    if (cargando) return <p>Cargando usuarios...</p>
 
     return (
-
         <section className="usuarios">
-
-
-            {/* ==================================================
-                TÍTULO
-            ================================================== */}
-
             <div className="seccion-titulo">
-
                 <div>
-
-                    <h2>
-                        Usuarios
-                    </h2>
-
-                    <p>
-                        Usuarios registrados en el sistema.
-                    </p>
-
+                    <h2>Usuarios</h2>
+                    <p>Control de cuentas registradas y acceso al sistema (Activo / Inactivo).</p>
                 </div>
 
-
-                <button
-                    className="boton-principal"
-                    onClick={
-                        nuevoUsuarioFormulario
-                    }
-                >
-                    Nuevo usuario
+                <button className="boton-principal" onClick={nuevoUsuarioFormulario}>
+                    + Nuevo usuario
                 </button>
-
             </div>
 
-
-            {/* ==================================================
-                FORMULARIO
-            ================================================== */}
+            {mensaje && <div className="mensaje-exito">{mensaje}</div>}
+            {error && <div className="mensaje-error">{error}</div>}
 
             {mostrarFormulario && (
-
-                <div className="formulario-usuario">
-
-                    <h3>
-
-                        {modoEdicion
-                            ? "Editar usuario"
-                            : "Nuevo usuario"
-                        }
-
-                    </h3>
-
+                <form className="formulario-usuario" onSubmit={guardarUsuario}>
+                    <h3>{modoEdicion ? "Editar usuario" : "Nuevo usuario"}</h3>
 
                     <div className="formulario-grid">
-
-
-                        {/* ================================
-                            NOMBRE
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Nombre
-                            </label>
-
-                            <input
-                                type="text"
-                                name="nombre"
-                                value={
-                                    nuevoUsuario.nombre
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            />
-
+                        <div>
+                            <label>Nombre</label>
+                            <input type="text" name="nombre" value={nuevoUsuario.nombre} onChange={manejarCambio} required />
                         </div>
-
-
-                        {/* ================================
-                            APELLIDO
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Apellido
-                            </label>
-
-                            <input
-                                type="text"
-                                name="apellido"
-                                value={
-                                    nuevoUsuario.apellido
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            />
-
+                        <div>
+                            <label>Apellido</label>
+                            <input type="text" name="apellido" value={nuevoUsuario.apellido} onChange={manejarCambio} required />
                         </div>
-
-
-                        {/* ================================
-                            DNI
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                DNI
-                            </label>
-
-                            <input
-                                type="text"
-                                name="dni"
-                                value={
-                                    nuevoUsuario.dni
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            />
-
+                        <div>
+                            <label>DNI</label>
+                            <input type="text" name="dni" value={nuevoUsuario.dni} onChange={manejarCambio} required />
                         </div>
-
-
-                        {/* ================================
-                            FECHA DE NACIMIENTO
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Fecha de nacimiento
-                            </label>
-
+                        <div>
+                            <label>Fecha de nacimiento</label>
                             <input
                                 type="date"
                                 name="fechaNacimiento"
-                                value={
-                                    nuevoUsuario.fechaNacimiento
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                                max={
-                                    fechaMaximaNacimiento
-                                }
+                                value={nuevoUsuario.fechaNacimiento}
+                                onChange={manejarCambio}
+                                max={fechaMaximaNacimiento}
                             />
-
                         </div>
-
-
-                        {/* ================================
-                            DOMICILIO
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Domicilio
-                            </label>
-
-                            <input
-                                type="text"
-                                name="domicilio"
-                                value={
-                                    nuevoUsuario.domicilio
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            />
-
+                        <div>
+                            <label>Domicilio</label>
+                            <input type="text" name="domicilio" value={nuevoUsuario.domicilio} onChange={manejarCambio} />
                         </div>
-
-
-                        {/* ================================
-                            TELÉFONO
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Teléfono
-                            </label>
-
-                            <input
-                                type="text"
-                                name="telefono"
-                                value={
-                                    nuevoUsuario.telefono
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            />
-
+                        <div>
+                            <label>Teléfono</label>
+                            <input type="text" name="telefono" value={nuevoUsuario.telefono} onChange={manejarCambio} />
                         </div>
-
-
-                        {/* ================================
-                            EMAIL
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Email
-                            </label>
-
-                            <input
-                                type="email"
-                                name="email"
-                                value={
-                                    nuevoUsuario.email
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            />
-
+                        <div>
+                            <label>Email</label>
+                            <input type="email" name="email" value={nuevoUsuario.email} onChange={manejarCambio} required />
                         </div>
-
-
-                        {/* ================================
-                            NOMBRE DE USUARIO
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Nombre de usuario
-                            </label>
-
-                            <input
-                                type="text"
-                                name="nombreUsuario"
-                                value={
-                                    nuevoUsuario.nombreUsuario
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            />
-
+                        <div>
+                            <label>Nombre de usuario</label>
+                            <input type="text" name="nombreUsuario" value={nuevoUsuario.nombreUsuario} onChange={manejarCambio} required />
                         </div>
-
-
-                        {/* ================================
-                            CONTRASEÑA
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-
-                                Contraseña
-
-                                {modoEdicion &&
-                                    " (opcional)"
-                                }
-
-                            </label>
-
+                        <div>
+                            <label>Contraseña {modoEdicion && "(opcional)"}</label>
                             <input
                                 type="password"
                                 name="password"
-                                value={
-                                    nuevoUsuario.password
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                                placeholder={
-                                    modoEdicion
-                                        ? "Dejar vacío para mantenerla"
-                                        : "Ingrese una contraseña"
-                                }
+                                value={nuevoUsuario.password}
+                                onChange={manejarCambio}
+                                required={!modoEdicion}
+                                placeholder={modoEdicion ? "Dejar vacío para mantenerla" : "Ingrese una contraseña"}
                             />
-
                         </div>
-
-
-                        {/* ================================
-                            PERTENENCIA
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Pertenencia
-                            </label>
-
-                            <select
-                                name="pertenencia"
-                                value={
-                                    nuevoUsuario.pertenencia
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            >
-
-                                <option value="NINGUNO">
-                                    Ninguno
-                                </option>
-
-                                <option value="DOCENTE">
-                                    Docente
-                                </option>
-
-                                <option value="ALUMNO">
-                                    Alumno
-                                </option>
-
-                                <option value="ADMINISTRATIVO">
-                                    Administrativo
-                                </option>
-
+                        <div>
+                            <label>Pertenencia</label>
+                            <select name="pertenencia" value={nuevoUsuario.pertenencia} onChange={manejarCambio}>
+                                <option value="NINGUNO">Ninguno</option>
+                                <option value="DOCENTE">Docente</option>
+                                <option value="ALUMNO">Alumno</option>
+                                <option value="ADMINISTRATIVO">Administrativo</option>
                             </select>
-
                         </div>
-
-
-                        {/* ================================
-                            LEGAJO
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Legajo
-                            </label>
-
-                            <input
-                                type="text"
-                                name="legajo"
-                                value={
-                                    nuevoUsuario.legajo
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            />
-
+                        <div>
+                            <label>Legajo</label>
+                            <input type="text" name="legajo" value={nuevoUsuario.legajo} onChange={manejarCambio} />
                         </div>
-
-
-                        {/* ================================
-                            ESTADO
-                        ================================= */}
-
-                        <div className="form-group">
-
-                            <label>
-                                Estado
-                            </label>
-
-                            <select
-                                name="estado"
-                                value={
-                                    nuevoUsuario.estado
-                                }
-                                onChange={
-                                    manejarCambio
-                                }
-                            >
-
-                                <option value="ACTIVO">
-                                    Activo
-                                </option>
-
-                                <option value="INACTIVO">
-                                    Inactivo
-                                </option>
-
+                        <div>
+                            <label>Estado de acceso</label>
+                            <select name="estado" value={nuevoUsuario.estado} onChange={manejarCambio}>
+                                <option value="ACTIVO">ACTIVO (Con acceso)</option>
+                                <option value="INACTIVO">INACTIVO (Sin acceso)</option>
                             </select>
-
                         </div>
-
                     </div>
-
-
-                    {/* ==================================================
-                        BOTONES
-                    ================================================== */}
 
                     <div className="formulario-botones">
-
-                        <button
-                            type="button"
-                            className="boton-secundario"
-                            onClick={
-                                cancelarFormulario
-                            }
-                        >
+                        <button type="button" className="boton-secundario" onClick={cancelarFormulario}>
                             Cancelar
                         </button>
-
-
-                        <button
-                            type="button"
-                            className="boton-principal"
-                            onClick={
-                                guardarUsuario
-                            }
-                        >
-                            {modoEdicion
-                                ? "Guardar cambios"
-                                : "Guardar usuario"
-                            }
+                        <button type="submit" className="boton-principal">
+                            {modoEdicion ? "Guardar cambios" : "Guardar usuario"}
                         </button>
-
                     </div>
-
-                </div>
-
+                </form>
             )}
 
+            {/* BUSCADOR + FILTROS DE MEMBRESÍA */}
+            <div
+                style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                    marginBottom: "16px"
+                }}
+            >
+                <input
+                    type="text"
+                    placeholder="Buscar por nombre, apellido, DNI, usuario o email..."
+                    value={busqueda}
+                    onChange={e => setBusqueda(e.target.value)}
+                    style={{
+                        flex: "1 1 280px",
+                        maxWidth: "420px",
+                        padding: "9px 12px",
+                        border: "1px solid #CBD5E1",
+                        borderRadius: "7px",
+                        fontSize: "14px"
+                    }}
+                />
 
-            {/* ==================================================
-                TABLA
-            ================================================== */}
-
-            <div className="tabla-contenedor">
-
-                <table>
-
-                    <thead>
-
-                    <tr>
-
-                        <th>
-                            ID
-                        </th>
-
-                        <th>
-                            Nombre
-                        </th>
-
-                        <th>
-                            Apellido
-                        </th>
-
-                        <th>
-                            Usuario
-                        </th>
-
-                        <th>
-                            Email
-                        </th>
-
-                        <th>
-                            Pertenencia
-                        </th>
-
-                        <th>
-                            Estado
-                        </th>
-
-                        <th>
-                            Acciones
-                        </th>
-
-                    </tr>
-
-                    </thead>
-
-
-                    <tbody>
-
-                    {usuarios.map(
-                        (usuario) => (
-
-                            <tr
-                                key={
-                                    usuario.idUsuario
-                                }
-                            >
-
-                                <td>
-                                    {
-                                        usuario.idUsuario
-                                    }
-                                </td>
-
-                                <td>
-                                    {
-                                        usuario.nombre
-                                    }
-                                </td>
-
-                                <td>
-                                    {
-                                        usuario.apellido
-                                    }
-                                </td>
-
-                                <td>
-                                    {
-                                        usuario.nombreUsuario
-                                    }
-                                </td>
-
-                                <td>
-                                    {
-                                        usuario.email
-                                    }
-                                </td>
-
-                                <td>
-                                    {
-                                        usuario.pertenencia
-                                    }
-                                </td>
-
-                                <td>
-                                    {
-                                        usuario.estado
-                                    }
-                                </td>
-
-                                <td>
-
-                                    <button
-                                        className="boton-editar"
-                                        onClick={() =>
-                                            editarUsuario(
-                                                usuario
-                                            )
-                                        }
-                                    >
-                                        Editar
-                                    </button>
-
-
-                                    <button
-                                        className="boton-eliminar"
-                                        onClick={() =>
-                                            eliminarUsuario(
-                                                usuario.idUsuario
-                                            )
-                                        }
-                                    >
-                                        Eliminar
-                                    </button>
-
-                                </td>
-
-                            </tr>
-
-                        )
-                    )}
-
-                    </tbody>
-
-                </table>
-
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    <button
+                        type="button"
+                        className={filtroMembresia === "TODOS" ? "boton-principal" : "boton-secundario"}
+                        onClick={() => setFiltroMembresia("TODOS")}
+                    >
+                        Todos ({usuarios.length})
+                    </button>
+                    <button
+                        type="button"
+                        className={filtroMembresia === "CON_MEMBRESIA" ? "boton-principal" : "boton-secundario"}
+                        onClick={() => setFiltroMembresia("CON_MEMBRESIA")}
+                    >
+                        Con membresía vigente ({totalConMembresia})
+                    </button>
+                    <button
+                        type="button"
+                        className={filtroMembresia === "SIN_MEMBRESIA" ? "boton-principal" : "boton-secundario"}
+                        onClick={() => setFiltroMembresia("SIN_MEMBRESIA")}
+                    >
+                        Sin membresía vigente ({totalSinMembresia})
+                    </button>
+                </div>
             </div>
 
+            <div className="tabla-contenedor">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre y Apellido</th>
+                        <th>DNI</th>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Pertenencia</th>
+                        <th>Acceso</th>
+                        <th>Acciones</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {usuariosFiltrados.length === 0 ? (
+                        <tr>
+                            <td colSpan="8" className="tabla-vacia">
+                                No se encontraron usuarios con los filtros seleccionados.
+                            </td>
+                        </tr>
+                    ) : (
+                        usuariosFiltrados.map(u => (
+                            <tr key={u.idUsuario}>
+                                <td>#{u.idUsuario}</td>
+                                <td><strong>{u.nombre} {u.apellido}</strong></td>
+                                <td>{u.dni}</td>
+                                <td>{u.nombreUsuario}</td>
+                                <td>{u.email}</td>
+                                <td>{u.pertenencia}</td>
+                                <td>
+                                    <span className={`estado ${u.estado === "ACTIVO" ? "estado-activo" : "estado-inactivo"}`}>
+                                        {u.estado}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button className="boton-editar" onClick={() => editarUsuario(u)}>
+                                        Editar
+                                    </button>
+                                    <button className="boton-eliminar" onClick={() => eliminarUsuario(u.idUsuario)}>
+                                        Eliminar
+                                    </button>
+                                </td>
+                            </tr>
+                        ))
+                    )}
+                    </tbody>
+                </table>
+            </div>
         </section>
     )
 }
